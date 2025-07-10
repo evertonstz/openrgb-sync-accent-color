@@ -45,7 +45,7 @@ jobs:
         run: npm ci
         
       - name: Run Biome lint
-        run: npm run lint -- --diagnostic-level=error
+        run: npm run lint
         
       - name: Run Biome format check
         run: npm run format:check
