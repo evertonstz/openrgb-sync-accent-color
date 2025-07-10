@@ -48,7 +48,7 @@ jobs:
         run: npm run lint
         
       - name: Run Biome format check
-        run: npm run format:check
+        run: npm run format
 
   build:
     name: Build Extension

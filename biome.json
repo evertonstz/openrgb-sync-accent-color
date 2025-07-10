@@ -49,11 +49,7 @@
     }
   },
   "files": {
-    "includes": [
-      "**/*.js",
-      "**/*.ts",
-      "**/*.json"
-    ],
+    "includes": ["**/*.js", "**/*.ts", "**/*.json"],
     "ignoreUnknown": false
   }
 }

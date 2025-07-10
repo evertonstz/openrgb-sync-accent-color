@@ -21,17 +21,15 @@ vi.mock('../src/openrgb/network.js', () => {
         location: 'Test Location',
         modes: [
           { name: 'Direct', value: 0 },
-          { name: 'Static', value: 1 }
+          { name: 'Static', value: 1 },
         ],
-        zones: [
-          { name: 'Zone 1', ledsCount: 10 }
-        ],
+        zones: [{ name: 'Zone 1', ledsCount: 10 }],
         leds: Array.from({ length: 10 }, (_, i) => ({ name: `LED ${i}` })),
-        colors: Array.from({ length: 10 }, () => ({ r: 255, g: 0, b: 0, a: 255 }))
+        colors: Array.from({ length: 10 }, () => ({ r: 255, g: 0, b: 0, a: 255 })),
       })),
       updateLeds: vi.fn().mockResolvedValue(undefined),
-      setDeviceMode: vi.fn().mockResolvedValue(undefined)
-    }))
+      setDeviceMode: vi.fn().mockResolvedValue(undefined),
+    })),
   };
 });
 
@@ -82,7 +80,7 @@ describe('OpenRGBClient', () => {
     it('should handle connection errors', async () => {
       const errorClient = new OpenRGBClient() as any;
       errorClient.networkClient.connect = vi.fn().mockRejectedValue(new Error('Connection failed'));
-      
+
       await expect(errorClient.connect()).rejects.toThrow('Connection failed');
       expect(errorClient.connected).toBe(false);
     });
@@ -92,7 +90,7 @@ describe('OpenRGBClient', () => {
     it('should disconnect successfully', async () => {
       await client.connect();
       expect(client.connected).toBe(true);
-      
+
       client.disconnect();
       expect(client.connected).toBe(false);
       expect(client.networkClient.disconnect).toHaveBeenCalledOnce();
@@ -112,20 +110,20 @@ describe('OpenRGBClient', () => {
 
     it('should discover devices successfully', async () => {
       await client.discoverDevices();
-      
+
       expect(client.networkClient.registerClient).toHaveBeenCalledOnce();
       expect(client.networkClient.getControllerCount).toHaveBeenCalledOnce();
       expect(client.networkClient.getControllerData).toHaveBeenCalledWith(0);
       expect(client.networkClient.getControllerData).toHaveBeenCalledWith(1);
-      
+
       expect(client.devices).toHaveLength(2);
       expect(client.devices[0]).toMatchObject({
         id: 0,
-        name: 'Test Device 0'
+        name: 'Test Device 0',
       });
       expect(client.devices[1]).toMatchObject({
         id: 1,
-        name: 'Test Device 1'
+        name: 'Test Device 1',
       });
     });
 
@@ -136,7 +134,7 @@ describe('OpenRGBClient', () => {
 
     it('should find direct mode for devices', async () => {
       await client.discoverDevices();
-      
+
       // Assuming the mock returns modes with 'Direct' mode
       expect(client.devices[0]).toHaveProperty('directModeIndex');
       expect(typeof client.devices[0].directModeIndex).toBe('number');
@@ -148,22 +146,24 @@ describe('OpenRGBClient', () => {
         name: `Test Device ${index}`,
         modes: [
           { name: 'Static', value: 1 },
-          { name: 'Rainbow', value: 2 }
+          { name: 'Rainbow', value: 2 },
         ],
         zones: [],
         leds: [],
-        colors: []
+        colors: [],
       }));
 
       await client.discoverDevices();
-      
+
       expect(client.devices[0]).toHaveProperty('directModeIndex');
       expect(client.devices[0].directModeIndex).toBe(0); // Should default to first mode
     });
 
     it('should handle discovery errors gracefully', async () => {
-      client.networkClient.getControllerCount = vi.fn().mockRejectedValue(new Error('Discovery failed'));
-      
+      client.networkClient.getControllerCount = vi
+        .fn()
+        .mockRejectedValue(new Error('Discovery failed'));
+
       // Should not throw, but should return empty array
       const devices = await client.discoverDevices();
       expect(devices).toEqual([]);
@@ -171,23 +171,24 @@ describe('OpenRGBClient', () => {
     });
 
     it('should handle individual device errors gracefully', async () => {
-      client.networkClient.getControllerData = vi.fn()
+      client.networkClient.getControllerData = vi
+        .fn()
         .mockResolvedValueOnce({
           name: 'Working Device',
           modes: [{ name: 'Direct', value: 0 }],
           zones: [],
           leds: [],
-          colors: []
+          colors: [],
         })
         .mockRejectedValueOnce(new Error('Device error'));
 
       // Should not throw, but should handle the error for the second device
       const devices = await client.discoverDevices();
       expect(devices).toHaveLength(2); // Working device + failed placeholder
-      
+
       // Should have the working device
       expect(devices[0].name).toBe('Working Device');
-      
+
       // Should have a placeholder for the failed device
       expect(devices[1].name).toBe('Device 1 (Failed)');
       expect(devices[1].ledCount).toBe(0);
@@ -217,9 +218,9 @@ describe('OpenRGBClient', () => {
     it('should clear devices on new discovery', async () => {
       const initialDevices = [...client.devices];
       expect(initialDevices.length).toBeGreaterThan(0);
-      
+
       await client.discoverDevices();
-      
+
       // Devices should be replaced, not appended
       expect(client.devices.length).toBe(2); // Same as mock count
     });
@@ -244,17 +245,17 @@ describe('OpenRGBClient', () => {
   describe('error handling', () => {
     it('should handle connection state properly', async () => {
       expect(client.connected).toBe(false);
-      
+
       await client.connect();
       expect(client.connected).toBe(true);
-      
+
       client.disconnect();
       expect(client.connected).toBe(false);
     });
 
     it('should maintain consistency on connection errors', async () => {
       client.networkClient.connect = vi.fn().mockRejectedValue(new Error('Network error'));
-      
+
       try {
         await client.connect();
       } catch (error) {
@@ -265,10 +266,10 @@ describe('OpenRGBClient', () => {
 
   describe('settings handling', () => {
     it('should store settings when provided', () => {
-      const settings = { 
+      const settings = {
         timeout: 10000,
         retries: 3,
-        enableLogging: true 
+        enableLogging: true,
       };
       const clientWithSettings = new OpenRGBClient('127.0.0.1', 6742, 'Test', settings as any);
       expect((clientWithSettings as any).settings).toEqual(settings);
