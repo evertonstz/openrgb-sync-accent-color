@@ -17,7 +17,6 @@ schemas/gschemas.compiled: schemas/$(SCHEMA_FILE)
 
 $(NAME).zip: dist/extension.js dist/prefs.js schemas/gschemas.compiled
 	@cp -r schemas dist/
-	@cp -r src dist/
 	@cp metadata.json dist/
 	@(cd dist && zip ../$(NAME).zip -9r .)
 
