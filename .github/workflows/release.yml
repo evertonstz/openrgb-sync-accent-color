@@ -46,7 +46,7 @@ jobs:
           ## Installation
           
           1. Download the `.zip` file below
-          2. Extract the entire `openrgb-sync-accent-color@evertonstz.github.io` folder to `~/.local/share/gnome-shell/extensions/`
+          2. Extract it to `~/.local/share/gnome-shell/extensions/`
           3. Restart GNOME Shell
           4. Enable the extension in GNOME Extensions app
           

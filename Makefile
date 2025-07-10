@@ -19,10 +19,7 @@ $(NAME).zip: dist/extension.js dist/prefs.js schemas/gschemas.compiled
 	@cp -r schemas dist/
 	@cp -r src dist/
 	@cp metadata.json dist/
-	@mkdir -p release/$(UUID)
-	@cp -r dist/* release/$(UUID)/
-	@(cd release && zip ../$(NAME).zip -9r .)
-	@rm -rf release
+	@(cd dist && zip ../$(NAME).zip -9r .)
 
 pack: $(NAME).zip
 
@@ -33,4 +30,4 @@ install: $(NAME).zip
 	@cp -r dist ~/.local/share/gnome-shell/extensions/$(UUID)
 
 clean:
-	@rm -rf dist node_modules $(NAME).zip release
+	@rm -rf dist node_modules $(NAME).zip
