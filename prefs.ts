@@ -119,7 +119,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
         const linkButton = new Gtk.LinkButton({
             label: _('GitHub Repository'),
-            uri: 'https://github.com/evertoncorreia/openrgb-sync-accent-color',
+            uri: 'https://github.com/evertonstz/openrgb-sync-accent-color',
             valign: Gtk.Align.CENTER,
         });
         aboutRow.add_suffix(linkButton);
