@@ -17,10 +17,10 @@ describe('PacketType Constants', () => {
         'REQUEST_CONTROLLER_DATA',
         'RGBCONTROLLER_UPDATELEDS',
         'RGBCONTROLLER_UPDATEMODE',
-        'SET_CLIENT_NAME'
+        'SET_CLIENT_NAME',
       ];
 
-      expectedPacketTypes.forEach(packetType => {
+      expectedPacketTypes.forEach((packetType) => {
         expect(PacketType).toHaveProperty(packetType);
         expect(typeof PacketType[packetType as keyof typeof PacketType]).toBe('number');
       });
@@ -34,7 +34,7 @@ describe('PacketType Constants', () => {
 
     it('should be a frozen object', () => {
       expect(Object.isFrozen(PacketType)).toBe(false); // Since it's a plain object
-      
+
       // Test that we can't accidentally modify it
       const originalValue = PacketType.REQUEST_CONTROLLER_COUNT;
       try {
@@ -63,7 +63,7 @@ describe('PacketType Constants', () => {
 
   describe('Packet type validation', () => {
     it('should validate that packet types are non-negative integers', () => {
-      Object.values(PacketType).forEach(value => {
+      Object.values(PacketType).forEach((value) => {
         expect(typeof value).toBe('number');
         expect(value).toBeGreaterThanOrEqual(0);
         expect(Number.isInteger(value)).toBe(true);

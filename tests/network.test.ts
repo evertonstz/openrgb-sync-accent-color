@@ -23,11 +23,11 @@ describe('NetworkClient', () => {
         'disconnect',
         'registerClient',
         'getControllerCount',
-        'getControllerData'
+        'getControllerData',
       ];
 
       // This tests our understanding of the interface
-      expectedMethods.forEach(method => {
+      expectedMethods.forEach((method) => {
         expect(typeof method).toBe('string');
         expect(method.length).toBeGreaterThan(0);
       });
@@ -35,8 +35,8 @@ describe('NetworkClient', () => {
 
     it('should handle connection parameters', () => {
       const expectedParams = ['address', 'port', 'name'];
-      
-      expectedParams.forEach(param => {
+
+      expectedParams.forEach((param) => {
         expect(typeof param).toBe('string');
         expect(param.length).toBeGreaterThan(0);
       });
@@ -69,10 +69,10 @@ describe('NetworkClient', () => {
       const packetTypes = {
         REQUEST_CONTROLLER_COUNT: 0,
         REQUEST_CONTROLLER_DATA: 1,
-        SET_CLIENT_NAME: 50
+        SET_CLIENT_NAME: 50,
       };
 
-      Object.values(packetTypes).forEach(type => {
+      Object.values(packetTypes).forEach((type) => {
         expect(typeof type).toBe('number');
         expect(type).toBeGreaterThanOrEqual(0);
       });
@@ -83,7 +83,7 @@ describe('NetworkClient', () => {
       const testBuffer = new ArrayBuffer(8);
       expect(testBuffer).toBeInstanceOf(ArrayBuffer);
       expect(testBuffer.byteLength).toBe(8);
-      
+
       const view = new DataView(testBuffer);
       expect(view).toBeInstanceOf(DataView);
     });
@@ -98,7 +98,7 @@ describe('NetworkClient', () => {
 
     it('should handle promise rejections', async () => {
       const mockFailingOperation = () => Promise.reject(new Error('Operation failed'));
-      
+
       await expect(mockFailingOperation()).rejects.toThrow('Operation failed');
     });
 
@@ -109,7 +109,7 @@ describe('NetworkClient', () => {
           expect(result).toBe('callback success');
           resolve(undefined);
         };
-        
+
         // Simulate async callback
         setTimeout(() => mockCallback(null, 'callback success'), 0);
       });
@@ -121,9 +121,9 @@ describe('NetworkClient', () => {
       // Based on the parser, packets should have header structure
       const mockHeader = {
         dataSize: 100,
-        commandType: 1
+        commandType: 1,
       };
-      
+
       expect(typeof mockHeader.dataSize).toBe('number');
       expect(typeof mockHeader.commandType).toBe('number');
       expect(mockHeader.dataSize).toBeGreaterThan(0);
@@ -134,17 +134,17 @@ describe('NetworkClient', () => {
       const testString = 'Test Client Name';
       const encoder = new TextEncoder();
       const decoder = new TextDecoder();
-      
+
       const encoded = encoder.encode(testString);
       const decoded = decoder.decode(encoded);
-      
+
       expect(decoded).toBe(testString);
       expect(encoded).toBeInstanceOf(Uint8Array);
     });
 
     it('should validate color data format', () => {
       const mockColor = { r: 255, g: 128, b: 64, a: 255 };
-      
+
       expect(mockColor.r).toBeGreaterThanOrEqual(0);
       expect(mockColor.r).toBeLessThanOrEqual(255);
       expect(mockColor.g).toBeGreaterThanOrEqual(0);
@@ -159,10 +159,14 @@ describe('NetworkClient', () => {
   describe('connection state management', () => {
     it('should track connection state', () => {
       let connected = false;
-      
-      const mockConnect = () => { connected = true; };
-      const mockDisconnect = () => { connected = false; };
-      
+
+      const mockConnect = () => {
+        connected = true;
+      };
+      const mockDisconnect = () => {
+        connected = false;
+      };
+
       expect(connected).toBe(false);
       mockConnect();
       expect(connected).toBe(true);
@@ -172,8 +176,8 @@ describe('NetworkClient', () => {
 
     it('should handle connection lifecycle', () => {
       const states = ['disconnected', 'connecting', 'connected', 'disconnecting'];
-      
-      states.forEach(state => {
+
+      states.forEach((state) => {
         expect(typeof state).toBe('string');
         expect(['disconnected', 'connecting', 'connected', 'disconnecting']).toContain(state);
       });

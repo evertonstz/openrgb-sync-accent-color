@@ -1,257 +1,268 @@
-// @ts-nocheck 
+// @ts-nocheck
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { PacketType } from './constants.js';
 import { DeviceData } from './device.js';
 
 export class NetworkClient {
-    constructor(address = '127.0.0.1', port = 6742, name = 'GNOME-OpenRGB-AccentSync') {
-        this.address = address;
-        this.port = port;
-        this.name = name;
-        this.connection = null;
-        this.connected = false;
-    }
+  constructor(address = '127.0.0.1', port = 6742, name = 'GNOME-OpenRGB-AccentSync') {
+    this.address = address;
+    this.port = port;
+    this.name = name;
+    this.connection = null;
+    this.connected = false;
+  }
 
-    async connect() {
-        this.disconnect();
-        
-        return new Promise((resolve, reject) => {
-            const address = Gio.InetSocketAddress.new_from_string(this.address, this.port);
-            if (!address) {
-                reject(new Error(`Invalid address: ${this.address}:${this.port}`));
-                return;
-            }
+  async connect() {
+    this.disconnect();
 
-            const socket = new Gio.SocketClient();
-            socket.connect_async(address, null, (source, result) => {
-                try {
-                    this.connection = source.connect_finish(result);
-                    this.connected = true;
-                    console.log(`OpenRGB: Connected to ${this.address}:${this.port}`);
-                    resolve();
-                } catch (error) {
-                    console.error('OpenRGB: Connection failed:', error.message);
-                    reject(error);
-                }
-            });
-        });
-    }
+    return new Promise((resolve, reject) => {
+      const address = Gio.InetSocketAddress.new_from_string(this.address, this.port);
+      if (!address) {
+        reject(new Error(`Invalid address: ${this.address}:${this.port}`));
+        return;
+      }
 
-    disconnect() {
-        if (this.connection) {
-            try {
-                this.connection.close(null);
-                console.log('OpenRGB: Connection closed');
-            } catch (error) {
-                console.warn('OpenRGB: Error closing connection:', error.message);
-            }
-            this.connection = null;
+      const socket = new Gio.SocketClient();
+      socket.connect_async(address, null, (source, result) => {
+        try {
+          this.connection = source.connect_finish(result);
+          this.connected = true;
+          console.log(`OpenRGB: Connected to ${this.address}:${this.port}`);
+          resolve();
+        } catch (error) {
+          console.error('OpenRGB: Connection failed:', error.message);
+          reject(error);
         }
-        this.connected = false;
+      });
+    });
+  }
+
+  disconnect() {
+    if (this.connection) {
+      try {
+        this.connection.close(null);
+        console.log('OpenRGB: Connection closed');
+      } catch (error) {
+        console.warn('OpenRGB: Error closing connection:', error.message);
+      }
+      this.connection = null;
+    }
+    this.connected = false;
+  }
+
+  createHeader(deviceId, packetType, dataSize) {
+    const header = new ArrayBuffer(16);
+    const view = new DataView(header);
+
+    view.setUint8(0, 0x4f); // 'O'
+    view.setUint8(1, 0x52); // 'R'
+    view.setUint8(2, 0x47); // 'G'
+    view.setUint8(3, 0x42); // 'B'
+
+    view.setUint32(4, deviceId, true);
+    view.setUint32(8, packetType, true);
+    view.setUint32(12, dataSize, true);
+
+    return header;
+  }
+
+  async sendPacket(deviceId, packetType, data = null) {
+    if (!this.connected) {
+      throw new Error('Not connected to OpenRGB server');
     }
 
-    createHeader(deviceId, packetType, dataSize) {
-        const header = new ArrayBuffer(16);
-        const view = new DataView(header);
-        
-        view.setUint8(0, 0x4F); // 'O'
-        view.setUint8(1, 0x52); // 'R'
-        view.setUint8(2, 0x47); // 'G'
-        view.setUint8(3, 0x42); // 'B'
-        
-        view.setUint32(4, deviceId, true);
-        view.setUint32(8, packetType, true);
-        view.setUint32(12, dataSize, true);
-        
-        return header;
-    }
+    const dataSize = data ? data.byteLength : 0;
+    const header = this.createHeader(deviceId, packetType, dataSize);
 
-    async sendPacket(deviceId, packetType, data = null) {
-        if (!this.connected) {
-            throw new Error('Not connected to OpenRGB server');
-        }
+    return new Promise((resolve, reject) => {
+      const outputStream = this.connection.get_output_stream();
+      const headerBytes = GLib.Bytes.new(new Uint8Array(header));
 
-        const dataSize = data ? data.byteLength : 0;
-        const header = this.createHeader(deviceId, packetType, dataSize);
-        
-        return new Promise((resolve, reject) => {
-            const outputStream = this.connection.get_output_stream();
-            const headerBytes = GLib.Bytes.new(new Uint8Array(header));
-            
-            outputStream.write_bytes_async(headerBytes, GLib.PRIORITY_DEFAULT, null, (source, result) => {
+      outputStream.write_bytes_async(headerBytes, GLib.PRIORITY_DEFAULT, null, (source, result) => {
+        try {
+          source.write_bytes_finish(result);
+
+          if (data) {
+            const dataBytes = GLib.Bytes.new(new Uint8Array(data));
+            outputStream.write_bytes_async(
+              dataBytes,
+              GLib.PRIORITY_DEFAULT,
+              null,
+              (source2, result2) => {
                 try {
-                    source.write_bytes_finish(result);
-                    
-                    if (data) {
-                        const dataBytes = GLib.Bytes.new(new Uint8Array(data));
-                        outputStream.write_bytes_async(dataBytes, GLib.PRIORITY_DEFAULT, null, (source2, result2) => {
-                            try {
-                                source2.write_bytes_finish(result2);
-                                resolve();
-                            } catch (error) {
-                                reject(error);
-                            }
-                        });
-                    } else {
-                        resolve();
-                    }
+                  source2.write_bytes_finish(result2);
+                  resolve();
                 } catch (error) {
-                    reject(error);
+                  reject(error);
                 }
-            });
-        });
-    }
-
-    async registerClient() {
-        const nameBuffer = new TextEncoder().encode(this.name);
-        const clientData = new ArrayBuffer(2 + nameBuffer.length);
-        const view = new DataView(clientData);
-        
-        view.setUint16(0, nameBuffer.length, true);
-        const nameArray = new Uint8Array(clientData, 2);
-        nameArray.set(nameBuffer);
-        
-        await this.sendPacket(0, PacketType.SET_CLIENT_NAME, clientData);
-        console.log(`OpenRGB: Registered client "${this.name}"`);
-    }
-
-    async getControllerCount() {
-        await this.sendPacket(0, PacketType.REQUEST_CONTROLLER_COUNT);
-        
-        return new Promise((resolve, reject) => {
-            const inputStream = this.connection.get_input_stream();
-            
-            inputStream.read_bytes_async(20, GLib.PRIORITY_DEFAULT, null, (source, result) => {
-                try {
-                    const readBytes = source.read_bytes_finish(result);
-                    const data = readBytes.get_data();
-                    
-                    if (data.length >= 20) {
-                        const count = data[16] | (data[17] << 8) | (data[18] << 16) | (data[19] << 24);
-                        resolve(count);
-                    } else {
-                        reject(new Error('Invalid response'));
-                    }
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        });
-    }
-
-    async getControllerData(deviceId) {
-        await this.sendPacket(deviceId, PacketType.REQUEST_CONTROLLER_DATA);
-        
-        return new Promise((resolve, reject) => {
-            const inputStream = this.connection.get_input_stream();
-            let totalBuffer = new Uint8Array(0);
-            let headerReceived = false;
-            let expectedDataSize = 0;
-            let timeoutId = null;
-            
-            const dataHandler = (source, result) => {
-                try {
-                    if (timeoutId) {
-                        GLib.source_remove(timeoutId);
-                        timeoutId = null;
-                    }
-                    
-                    const data = inputStream.read_bytes_finish(result);
-                    if (data && data.get_size() > 0) {
-                        const buffer = new Uint8Array(data.get_data());
-                        
-                        const newBuffer = new Uint8Array(totalBuffer.length + buffer.length);
-                        newBuffer.set(totalBuffer);
-                        newBuffer.set(buffer, totalBuffer.length);
-                        totalBuffer = newBuffer;
-                        
-                        if (!headerReceived && totalBuffer.length >= 16) {
-                            const view = new DataView(totalBuffer.buffer, totalBuffer.byteOffset, totalBuffer.byteLength);
-                            expectedDataSize = view.getUint32(12, true);
-                            headerReceived = true;
-                            console.log(`OpenRGB: Device ${deviceId} - Expected data size: ${expectedDataSize}`);
-                        }
-                        
-                        if (headerReceived && totalBuffer.length >= 16 + expectedDataSize) {
-                            console.log(`OpenRGB: Device ${deviceId} - processing ${expectedDataSize} bytes`);
-                            
-                            const deviceBuffer = totalBuffer.slice(16, 16 + expectedDataSize);
-                            
-                            const arrayBuffer = deviceBuffer.buffer.slice(
-                                deviceBuffer.byteOffset,
-                                deviceBuffer.byteOffset + deviceBuffer.byteLength
-                            );
-                            
-                            try {
-                                const deviceData = DeviceData.parse(arrayBuffer);
-                                resolve(deviceData);
-                            } catch (parseError) {
-                                console.error(`OpenRGB: Failed to parse device ${deviceId}:`, parseError);
-                                reject(parseError);
-                            }
-                            return;
-                        }
-                        
-                        if (totalBuffer.length < 16 + expectedDataSize) {
-                            inputStream.read_bytes_async(4096, GLib.PRIORITY_DEFAULT, null, dataHandler);
-                        }
-                    } else {
-                        console.warn(`OpenRGB: Device ${deviceId} - no data received`);
-                        reject(new Error('No data received'));
-                    }
-                } catch (error) {
-                    if (timeoutId) {
-                        GLib.source_remove(timeoutId);
-                    }
-                    reject(error);
-                }
-            };
-            
-            timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10000, () => {
-                reject(new Error('Timeout waiting for device data'));
-                return GLib.SOURCE_REMOVE;
-            });
-            
-            inputStream.read_bytes_async(4096, GLib.PRIORITY_DEFAULT, null, dataHandler);
-        });
-    }
-
-    async updateLeds(deviceId, color, ledCount) {
-        const totalSize = 6 + (ledCount * 4);
-        const dataPayload = new ArrayBuffer(totalSize);
-        const view = new DataView(dataPayload);
-        
-        view.setUint32(0, totalSize, true);
-        view.setUint16(4, ledCount, true);
-        
-        for (let i = 0; i < ledCount; i++) {
-            const offset = 6 + (i * 4);
-            view.setUint8(offset, color.r);
-            view.setUint8(offset + 1, color.g);
-            view.setUint8(offset + 2, color.b);
-            view.setUint8(offset + 3, 0);
-        }
-        
-        await this.sendPacket(deviceId, PacketType.RGBCONTROLLER_UPDATELEDS, dataPayload);
-    }
-
-    async setDeviceMode(deviceId, modeIndex) {
-        if (!this.connected) {
-            throw new Error('Not connected to OpenRGB server');
-        }
-        
-        console.log(`OpenRGB: Setting device ${deviceId} to mode ${modeIndex}`);
-        
-        const modeData = new ArrayBuffer(4);
-        const view = new DataView(modeData);
-        view.setUint32(0, modeIndex, true);
-        
-        await this.sendPacket(deviceId, PacketType.RGBCONTROLLER_UPDATEMODE, modeData);
-        
-        await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+              },
+            );
+          } else {
             resolve();
-            return GLib.SOURCE_REMOVE;
-        }));
+          }
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  async registerClient() {
+    const nameBuffer = new TextEncoder().encode(this.name);
+    const clientData = new ArrayBuffer(2 + nameBuffer.length);
+    const view = new DataView(clientData);
+
+    view.setUint16(0, nameBuffer.length, true);
+    const nameArray = new Uint8Array(clientData, 2);
+    nameArray.set(nameBuffer);
+
+    await this.sendPacket(0, PacketType.SET_CLIENT_NAME, clientData);
+    console.log(`OpenRGB: Registered client "${this.name}"`);
+  }
+
+  async getControllerCount() {
+    await this.sendPacket(0, PacketType.REQUEST_CONTROLLER_COUNT);
+
+    return new Promise((resolve, reject) => {
+      const inputStream = this.connection.get_input_stream();
+
+      inputStream.read_bytes_async(20, GLib.PRIORITY_DEFAULT, null, (source, result) => {
+        try {
+          const readBytes = source.read_bytes_finish(result);
+          const data = readBytes.get_data();
+
+          if (data.length >= 20) {
+            const count = data[16] | (data[17] << 8) | (data[18] << 16) | (data[19] << 24);
+            resolve(count);
+          } else {
+            reject(new Error('Invalid response'));
+          }
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  async getControllerData(deviceId) {
+    await this.sendPacket(deviceId, PacketType.REQUEST_CONTROLLER_DATA);
+
+    return new Promise((resolve, reject) => {
+      const inputStream = this.connection.get_input_stream();
+      let totalBuffer = new Uint8Array(0);
+      let headerReceived = false;
+      let expectedDataSize = 0;
+      let timeoutId = null;
+
+      const dataHandler = (source, result) => {
+        try {
+          if (timeoutId) {
+            GLib.source_remove(timeoutId);
+            timeoutId = null;
+          }
+
+          const data = inputStream.read_bytes_finish(result);
+          if (data && data.get_size() > 0) {
+            const buffer = new Uint8Array(data.get_data());
+
+            const newBuffer = new Uint8Array(totalBuffer.length + buffer.length);
+            newBuffer.set(totalBuffer);
+            newBuffer.set(buffer, totalBuffer.length);
+            totalBuffer = newBuffer;
+
+            if (!headerReceived && totalBuffer.length >= 16) {
+              const view = new DataView(
+                totalBuffer.buffer,
+                totalBuffer.byteOffset,
+                totalBuffer.byteLength,
+              );
+              expectedDataSize = view.getUint32(12, true);
+              headerReceived = true;
+              console.log(`OpenRGB: Device ${deviceId} - Expected data size: ${expectedDataSize}`);
+            }
+
+            if (headerReceived && totalBuffer.length >= 16 + expectedDataSize) {
+              console.log(`OpenRGB: Device ${deviceId} - processing ${expectedDataSize} bytes`);
+
+              const deviceBuffer = totalBuffer.slice(16, 16 + expectedDataSize);
+
+              const arrayBuffer = deviceBuffer.buffer.slice(
+                deviceBuffer.byteOffset,
+                deviceBuffer.byteOffset + deviceBuffer.byteLength,
+              );
+
+              try {
+                const deviceData = DeviceData.parse(arrayBuffer);
+                resolve(deviceData);
+              } catch (parseError) {
+                console.error(`OpenRGB: Failed to parse device ${deviceId}:`, parseError);
+                reject(parseError);
+              }
+              return;
+            }
+
+            if (totalBuffer.length < 16 + expectedDataSize) {
+              inputStream.read_bytes_async(4096, GLib.PRIORITY_DEFAULT, null, dataHandler);
+            }
+          } else {
+            console.warn(`OpenRGB: Device ${deviceId} - no data received`);
+            reject(new Error('No data received'));
+          }
+        } catch (error) {
+          if (timeoutId) {
+            GLib.source_remove(timeoutId);
+          }
+          reject(error);
+        }
+      };
+
+      timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10000, () => {
+        reject(new Error('Timeout waiting for device data'));
+        return GLib.SOURCE_REMOVE;
+      });
+
+      inputStream.read_bytes_async(4096, GLib.PRIORITY_DEFAULT, null, dataHandler);
+    });
+  }
+
+  async updateLeds(deviceId, color, ledCount) {
+    const totalSize = 6 + ledCount * 4;
+    const dataPayload = new ArrayBuffer(totalSize);
+    const view = new DataView(dataPayload);
+
+    view.setUint32(0, totalSize, true);
+    view.setUint16(4, ledCount, true);
+
+    for (let i = 0; i < ledCount; i++) {
+      const offset = 6 + i * 4;
+      view.setUint8(offset, color.r);
+      view.setUint8(offset + 1, color.g);
+      view.setUint8(offset + 2, color.b);
+      view.setUint8(offset + 3, 0);
     }
+
+    await this.sendPacket(deviceId, PacketType.RGBCONTROLLER_UPDATELEDS, dataPayload);
+  }
+
+  async setDeviceMode(deviceId, modeIndex) {
+    if (!this.connected) {
+      throw new Error('Not connected to OpenRGB server');
+    }
+
+    console.log(`OpenRGB: Setting device ${deviceId} to mode ${modeIndex}`);
+
+    const modeData = new ArrayBuffer(4);
+    const view = new DataView(modeData);
+    view.setUint32(0, modeIndex, true);
+
+    await this.sendPacket(deviceId, PacketType.RGBCONTROLLER_UPDATEMODE, modeData);
+
+    await new Promise((resolve) =>
+      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+        resolve();
+        return GLib.SOURCE_REMOVE;
+      }),
+    );
+  }
 }
