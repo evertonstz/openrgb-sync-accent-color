@@ -2,6 +2,16 @@
 
 A GNOME Shell extension that automatically synchronizes your GNOME accent colors with OpenRGB devices.
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/bcf7adce-6425-4713-a955-56332b51caef" height="100" align="middle">
+</p>
+
+<p align="center">
+  <a href="https://extensions.gnome.org/extension/8331/openrgb-accent-color-sync/">
+    <img src="https://raw.githubusercontent.com/andyholmes/gnome-shell-extensions-badge/master/get-it-on-ego.svg?sanitize=true" alt="Get it on GNOME Extensions" height="100" align="middle">
+  </a>
+</p>
+
 ## Features
 
 - 🎨 Automatically syncs GNOME accent colors to all OpenRGB devices
