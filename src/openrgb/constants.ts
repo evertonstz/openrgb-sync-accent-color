@@ -1,0 +1,9 @@
+// @ts-nocheck 
+// OpenRGB SDK packet types
+export const PacketType = {
+    REQUEST_CONTROLLER_COUNT: 0,
+    REQUEST_CONTROLLER_DATA: 1,
+    RGBCONTROLLER_UPDATELEDS: 1050,
+    RGBCONTROLLER_UPDATEMODE: 1054,
+    SET_CLIENT_NAME: 50
+};

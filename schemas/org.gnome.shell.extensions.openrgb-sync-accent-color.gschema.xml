@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+    <schema id="org.gnome.shell.extensions.openrgb-sync-accent-color" path="/org/gnome/shell/extensions/openrgb-sync-accent-color/">
+        <key name="openrgb-host" type="s">
+            <default>"127.0.0.1"</default>
+            <summary>OpenRGB Server Host</summary>
+            <description>The hostname or IP address of the OpenRGB server</description>
+        </key>
+        <key name="openrgb-port" type="i">
+            <default>6742</default>
+            <range min="1" max="65535"/>
+            <summary>OpenRGB Server Port</summary>
+            <description>The port number of the OpenRGB server</description>
+        </key>
+        <key name="sync-enabled" type="b">
+            <default>true</default>
+            <summary>Enable Synchronization</summary>
+            <description>Enable or disable automatic color synchronization</description>
+        </key>
+        <key name="sync-delay" type="i">
+            <default>100</default>
+            <range min="0" max="5000"/>
+            <summary>Sync Delay (ms)</summary>
+            <description>Delay in milliseconds before syncing color changes</description>
+        </key>
+        <key name="selected-devices" type="as">
+            <default>[]</default>
+            <summary>Selected Devices</summary>
+            <description>List of device indices to sync (empty means all devices)</description>
+        </key>
+        <key name="set-direct-mode-on-update" type="b">
+            <default>false</default>
+            <summary>Set Direct Mode on Every Update</summary>
+            <description>If enabled, set devices to direct mode before every color update (may be needed for some devices that change modes)</description>
+        </key>
+    </schema>
+</schemalist>

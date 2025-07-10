@@ -1,0 +1,27 @@
+{
+  "name": "openrgb-sync-accent-color",
+  "version": "unused",
+  "description": "Synchronize GNOME accent colors with OpenRGB devices",
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evertonstz/openrgb-sync-accent-color.git"
+  },
+  "author": "Álan Crístoffer e Sousa <acristoffers@startmail.com>",
+  "license": "LGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/evertonstz/openrgb-sync-accent-color/issues"
+  },
+  "homepage": "https://github.com/evertonstz/openrgb-sync-accent-color#readme",
+  "sideEffects": false,
+  "devDependencies": {
+    "eslint": "^9.30.1",
+    "eslint-plugin-jsdoc": "^51.3.4",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@girs/gjs": "^4.0.0-beta.25",
+    "@girs/gnome-shell": "^48.0.2"
+  }
+}
