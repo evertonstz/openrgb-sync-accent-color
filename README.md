@@ -18,7 +18,7 @@ A GNOME Shell extension that automatically synchronizes your GNOME accent colors
 
 ## Documentation
 
-- **[OpenRGB SDK Documentation](src/openrgb/README.md)** - Complete documentation of the OpenRGB protocol implementation
+Wanna build a GNOME extension with OpenRGB support? **[The implementation of the OpenRGB-SDK in this repo might help you](src/openrgb)**
 
 ## Installation
 
@@ -86,6 +86,15 @@ systemctl --user start openrgb.service
 # Check service status
 systemctl --user status openrgb.service
 ```
+
+## Special Thanks
+
+This project was made possible thanks to the excellent work and documentation from:
+
+- **[OpenRGB Documentation](https://gitlab.com/OpenRGBDevelopers/OpenRGB-Wiki/-/blob/stable/Developer-Documentation/OpenRGB-SDK-Documentation.md)** - Official OpenRGB SDK protocol documentation
+- **[OpenRGB Python SDK](https://github.com/jath03/openrgb-python)** - Python implementation that served as reference for protocol implementation
+- **[Artemis OpenRGB Plugin](https://github.com/Artemis-RGB/Artemis.Plugins)** - Excellent example of OpenRGB integration patterns
+- **[OpenRGB.NET](https://github.com/diogotr7/OpenRGB.NET)** - C# SDK implementation providing additional protocol insights
 
 ## License
 
