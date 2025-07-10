@@ -18,6 +18,7 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     this.maxReconnectionAttempts = 10;
     this.reconnectionDelay = 5000;
     this.syncInProgress = false;
+    this.syncTimeouts = new Set();
   }
 
   enable() {
@@ -37,6 +38,8 @@ export default class OpenRGBAccentSyncExtension extends Extension {
 
   disable() {
     console.log('OpenRGB Accent Sync: Extension disabled');
+
+    this.clearAllTimeouts();
 
     if (this.periodicCheckTimer) {
       GLib.source_remove(this.periodicCheckTimer);
@@ -86,6 +89,22 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     }
 
     this.reconnectionAttempts = 0;
+  }
+
+  addTimeout(callback, delay) {
+    const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+      this.syncTimeouts.delete(timeoutId);
+      return callback();
+    });
+    this.syncTimeouts.add(timeoutId);
+    return timeoutId;
+  }
+
+  clearAllTimeouts() {
+    for (const timeoutId of this.syncTimeouts) {
+      GLib.source_remove(timeoutId);
+    }
+    this.syncTimeouts.clear();
   }
 
   async initializeOpenRGB() {
@@ -141,7 +160,7 @@ export default class OpenRGBAccentSyncExtension extends Extension {
       }
 
       await this.initializeOpenRGB();
-      return this.openrgbClient && this.openrgbClient.connected;
+      return this.openrgbClient?.connected;
     }
     return true;
   }
@@ -175,10 +194,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
           `OpenRGB Accent Sync: Syncing current accent color after connection: RGB(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`,
         );
 
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+        this.addTimeout(() => {
           this.syncAccentColor(currentColor);
           return GLib.SOURCE_REMOVE;
-        });
+        }, 1000);
       } else {
         console.log('OpenRGB Accent Sync: No current accent color to sync');
       }
@@ -201,13 +220,13 @@ export default class OpenRGBAccentSyncExtension extends Extension {
           `OpenRGB Accent Sync: Initial accent color: RGB(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`,
         );
 
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+        this.addTimeout(() => {
           this.syncAccentColor(currentColor);
           return GLib.SOURCE_REMOVE;
-        });
+        }, 2000);
       }
 
-      this.accentColorSignal = desktopSettings.connect('changed', (settings, key) => {
+      this.accentColorSignal = desktopSettings.connect('changed', (_settings, key) => {
         console.log(`OpenRGB Accent Sync: Interface setting changed: ${key}`);
         if (key === 'accent-color') {
           console.log('OpenRGB Accent Sync: *** ACCENT COLOR CHANGE SIGNAL FIRED ***');
@@ -217,10 +236,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
               `OpenRGB Accent Sync: New accent color: RGB(${newColor.r}, ${newColor.g}, ${newColor.b})`,
             );
 
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this.addTimeout(() => {
               this.syncAccentColor(newColor);
               return GLib.SOURCE_REMOVE;
-            });
+            }, 500);
           } else {
             console.log('OpenRGB Accent Sync: Failed to get new accent color');
           }
@@ -235,10 +254,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
             `OpenRGB Accent Sync: New accent color (specific): RGB(${newColor.r}, ${newColor.g}, ${newColor.b})`,
           );
 
-          GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+          this.addTimeout(() => {
             this.syncAccentColor(newColor);
             return GLib.SOURCE_REMOVE;
-          });
+          }, 500);
         } else {
           console.log('OpenRGB Accent Sync: Failed to get new accent color (specific)');
         }
@@ -341,10 +360,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
       if (syncDelay > 0) {
         console.log(`OpenRGB Accent Sync: Waiting ${syncDelay}ms before sync`);
         await new Promise((resolve) =>
-          GLib.timeout_add(GLib.PRIORITY_DEFAULT, syncDelay, () => {
+          this.addTimeout(() => {
             resolve();
             return GLib.SOURCE_REMOVE;
-          }),
+          }, syncDelay),
         );
       }
 
@@ -367,10 +386,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
 
       this.startReconnectionTimer();
     } finally {
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+      this.addTimeout(() => {
         this.syncInProgress = false;
         return GLib.SOURCE_REMOVE;
-      });
+      }, 1000);
     }
   }
 }

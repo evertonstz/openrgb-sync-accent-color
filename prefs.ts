@@ -11,7 +11,7 @@ import {
 
 export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
-    const settings = this.getSettings('org.gnome.shell.extensions.openrgb-sync-accent-color');
+    const settings = this.getSettings();
 
     const page = new Adw.PreferencesPage({
       title: _('OpenRGB Accent Sync'),
