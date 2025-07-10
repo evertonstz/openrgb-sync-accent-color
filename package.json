@@ -30,7 +30,6 @@
   "scripts": {
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format .",

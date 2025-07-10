@@ -57,10 +57,6 @@ test-watch: node_modules
 	@echo "Running tests in watch mode..."
 	npm run test
 
-test-coverage: node_modules
-	@echo "Running tests with coverage..."
-	npm run test:coverage
-
 test-silent: node_modules
 	@echo "Running tests (silent)..."
 	@npm run test:run --silent
