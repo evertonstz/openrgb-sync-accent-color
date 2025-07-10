@@ -33,7 +33,6 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format .",
-    "format:check": "biome format --check .",
     "format:fix": "biome format --write .",
     "check": "biome check .",
     "check:fix": "biome check --write ."
