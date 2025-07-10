@@ -11,7 +11,6 @@ export class NetworkClient {
     this.name = name;
     this.connection = null;
     this.connected = false;
-    // Track timeout IDs for proper cleanup
     this.timeouts = new Set();
   }
 
@@ -41,7 +40,6 @@ export class NetworkClient {
   }
 
   disconnect() {
-    // Clear all timeouts
     this.clearAllTimeouts();
     
     if (this.connection) {
@@ -56,7 +54,6 @@ export class NetworkClient {
     this.connected = false;
   }
 
-  // Helper method to manage timeouts
   addTimeout(callback, delay) {
     const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
       this.timeouts.delete(timeoutId);

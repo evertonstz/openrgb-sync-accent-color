@@ -18,7 +18,6 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     this.maxReconnectionAttempts = 10;
     this.reconnectionDelay = 5000;
     this.syncInProgress = false;
-    // Track all timeout IDs for proper cleanup
     this.syncTimeouts = new Set();
   }
 
@@ -40,7 +39,6 @@ export default class OpenRGBAccentSyncExtension extends Extension {
   disable() {
     console.log('OpenRGB Accent Sync: Extension disabled');
 
-    // Clear all tracked timeouts
     this.clearAllTimeouts();
 
     if (this.periodicCheckTimer) {
@@ -93,7 +91,6 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     this.reconnectionAttempts = 0;
   }
 
-  // Helper method to manage timeouts
   addTimeout(callback, delay) {
     const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
       this.syncTimeouts.delete(timeoutId);
