@@ -38,6 +38,9 @@ make install
 
 # Package for distribution
 make pack
+
+# Run unit and integration tests
+make test
 ```
 
 ## OpenRGB Setup
