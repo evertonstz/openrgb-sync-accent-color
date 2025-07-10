@@ -1,0 +1,73 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Install glib-compile-schemas
+      run: sudo apt-get update && sudo apt-get install -y libglib2.0-dev-bin
+      
+    - name: Build extension
+      run: make all
+      
+    - name: Package extension
+      run: make pack
+      
+    - name: Get tag name
+      id: tag
+      run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        release_name: Release ${{ steps.tag.outputs.tag }}
+        body: |
+          ## Changes
+          
+          Automated release for version ${{ steps.tag.outputs.tag }}
+          
+          ## Installation
+          
+          1. Download the `.zip` file below
+          2. Extract it to `~/.local/share/gnome-shell/extensions/`
+          3. Restart GNOME Shell
+          4. Enable the extension in GNOME Extensions app
+          
+          ## Requirements
+          
+          - GNOME Shell 45+
+          - OpenRGB server running in background
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./openrgb-sync-accent-color.zip
+        asset_name: openrgb-sync-accent-color-${{ steps.tag.outputs.tag }}.zip
+        asset_content_type: application/zip
