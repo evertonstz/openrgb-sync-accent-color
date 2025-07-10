@@ -47,7 +47,7 @@ jobs:
           
           1. Download the `.zip` file below
           2. Extract it to `~/.local/share/gnome-shell/extensions/`
-          3. Restart GNOME Shell (Alt+F2, type `r`, press Enter)
+          3. Restart GNOME Shell
           4. Enable the extension in GNOME Extensions app
           
           ## Requirements
