@@ -2,7 +2,7 @@ NAME=openrgb-sync-accent-color
 UUID=openrgb-sync-accent-color@evertonstz.github.io
 SCHEMA_FILE=org.gnome.shell.extensions.openrgb-sync-accent-color.gschema.xml
 
-.PHONY: all pack install clean test test-watch test-coverage test-silent lint format check lint-fix format-fix check-fix dev help
+.PHONY: all pack install clean test test-watch test-silent lint format check lint-fix format-fix check-fix dev help
 
 all: dist/extension.js
 
@@ -14,7 +14,6 @@ help:
 	@echo "  install       - Install extension to GNOME Shell"
 	@echo "  test          - Run tests once"
 	@echo "  test-watch    - Run tests in watch mode"
-	@echo "  test-coverage - Run tests with coverage report"
 	@echo "  test-silent   - Run tests with minimal output"
 	@echo "  lint          - Run linter (check only)"
 	@echo "  format        - Run formatter (check only)"
