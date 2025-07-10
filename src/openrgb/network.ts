@@ -11,6 +11,8 @@ export class NetworkClient {
     this.name = name;
     this.connection = null;
     this.connected = false;
+    // Track timeout IDs for proper cleanup
+    this.timeouts = new Set();
   }
 
   async connect() {
@@ -39,6 +41,9 @@ export class NetworkClient {
   }
 
   disconnect() {
+    // Clear all timeouts
+    this.clearAllTimeouts();
+    
     if (this.connection) {
       try {
         this.connection.close(null);
@@ -49,6 +54,23 @@ export class NetworkClient {
       this.connection = null;
     }
     this.connected = false;
+  }
+
+  // Helper method to manage timeouts
+  addTimeout(callback, delay) {
+    const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+      this.timeouts.delete(timeoutId);
+      return callback();
+    });
+    this.timeouts.add(timeoutId);
+    return timeoutId;
+  }
+
+  clearAllTimeouts() {
+    for (const timeoutId of this.timeouts) {
+      GLib.source_remove(timeoutId);
+    }
+    this.timeouts.clear();
   }
 
   createHeader(deviceId, packetType, dataSize) {
@@ -155,7 +177,7 @@ export class NetworkClient {
       let expectedDataSize = 0;
       let timeoutId = null;
 
-      const dataHandler = (source, result) => {
+      const dataHandler = (_source, result) => {
         try {
           if (timeoutId) {
             GLib.source_remove(timeoutId);
@@ -194,6 +216,10 @@ export class NetworkClient {
 
               try {
                 const deviceData = DeviceData.parse(arrayBuffer);
+                if (timeoutId) {
+                  GLib.source_remove(timeoutId);
+                  this.timeouts.delete(timeoutId);
+                }
                 resolve(deviceData);
               } catch (parseError) {
                 console.error(`OpenRGB: Failed to parse device ${deviceId}:`, parseError);
@@ -212,15 +238,18 @@ export class NetworkClient {
         } catch (error) {
           if (timeoutId) {
             GLib.source_remove(timeoutId);
+            this.timeouts.delete(timeoutId);
           }
           reject(error);
         }
       };
 
       timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10000, () => {
+        this.timeouts.delete(timeoutId);
         reject(new Error('Timeout waiting for device data'));
         return GLib.SOURCE_REMOVE;
       });
+      this.timeouts.add(timeoutId);
 
       inputStream.read_bytes_async(4096, GLib.PRIORITY_DEFAULT, null, dataHandler);
     });
@@ -259,10 +288,10 @@ export class NetworkClient {
     await this.sendPacket(deviceId, PacketType.RGBCONTROLLER_UPDATEMODE, modeData);
 
     await new Promise((resolve) =>
-      GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+      this.addTimeout(() => {
         resolve();
         return GLib.SOURCE_REMOVE;
-      }),
+      }, 200),
     );
   }
 }
