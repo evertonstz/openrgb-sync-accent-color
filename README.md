@@ -16,6 +16,10 @@ A GNOME Shell extension that automatically synchronizes your GNOME accent colors
 - 🔌 Automatic reconnection handling for OpenRGB
 - 🛠️ Built with TypeScript for better maintainability
 
+## Documentation
+
+- **[OpenRGB SDK Documentation](src/openrgb/README.md)** - Complete documentation of the OpenRGB protocol implementation
+
 ## Installation
 
 ### Prerequisites
