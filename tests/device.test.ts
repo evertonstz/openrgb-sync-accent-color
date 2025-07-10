@@ -128,9 +128,9 @@ describe('DeviceData', () => {
         const mode = result.modes[0];
         expect(mode).toBeDefined();
         expect(typeof mode.name).toBe('string');
-        if (mode.hasOwnProperty('value')) expect(typeof mode.value).toBe('number');
-        if (mode.hasOwnProperty('flags')) expect(typeof mode.flags).toBe('number');
-        if (mode.hasOwnProperty('colors')) expect(Array.isArray(mode.colors)).toBe(true);
+        if (Object.hasOwn(mode, 'value')) expect(typeof mode.value).toBe('number');
+        if (Object.hasOwn(mode, 'flags')) expect(typeof mode.flags).toBe('number');
+        if (Object.hasOwn(mode, 'colors')) expect(Array.isArray(mode.colors)).toBe(true);
       }
     });
   });
@@ -144,8 +144,8 @@ describe('DeviceData', () => {
         const zone = result.zones[0];
         expect(zone).toBeDefined();
         expect(typeof zone.name).toBe('string');
-        if (zone.hasOwnProperty('type')) expect(typeof zone.type).toBe('number');
-        if (zone.hasOwnProperty('ledsCount')) expect(typeof zone.ledsCount).toBe('number');
+        if (Object.hasOwn(zone, 'type')) expect(typeof zone.type).toBe('number');
+        if (Object.hasOwn(zone, 'ledsCount')) expect(typeof zone.ledsCount).toBe('number');
       }
     });
   });
@@ -159,7 +159,7 @@ describe('DeviceData', () => {
         const led = result.leds[0];
         expect(led).toBeDefined();
         expect(typeof led.name).toBe('string');
-        if (led.hasOwnProperty('value')) expect(typeof led.value).toBe('number');
+        if (Object.hasOwn(led, 'value')) expect(typeof led.value).toBe('number');
       }
     });
   });
