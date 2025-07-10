@@ -273,15 +273,15 @@ export default class OpenRGBAccentSyncExtension extends Extension {
             // We need to map these to RGB values
             const colorMap = {
                 'blue': { r: 53, g: 132, b: 228 },
-                'teal': { r: 0, g: 167, b: 148 },
-                'green': { r: 51, g: 209, b: 122 },
-                'yellow': { r: 245, g: 194, b: 17 },
-                'orange': { r: 255, g: 120, b: 0 },
-                'red': { r: 237, g: 51, b: 59 },
-                'pink': { r: 224, g: 27, b: 106 },
-                'purple': { r: 145, g: 65, b: 172 },
-                'slate': { r: 87, g: 96, b: 106 },
-                'default': { r: 53, g: 132, b: 228 }, // Default to blue
+                'teal': { r: 33, g: 144, b: 164 },
+                'green': { r: 21, g: 160, b: 44 },
+                'yellow': { r: 215, g: 145, b: 4 },
+                'orange': { r: 237, g: 71, b: 0 },
+                'red': { r: 243, g: 5, b: 17 },
+                'pink': { r: 250, g: 42, b: 153 },
+                'purple': { r: 167, g: 12, b: 250 },
+                'slate': { r: 148, g: 201, b: 250 },
+                'default': { r: 255, g: 255, b: 255 },
             };
             
             return colorMap[accentColor] || colorMap['default'];
