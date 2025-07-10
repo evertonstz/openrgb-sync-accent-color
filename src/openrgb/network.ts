@@ -41,7 +41,7 @@ export class NetworkClient {
 
   disconnect() {
     this.clearAllTimeouts();
-    
+
     if (this.connection) {
       try {
         this.connection.close(null);
