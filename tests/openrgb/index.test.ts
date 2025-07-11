@@ -45,7 +45,7 @@ describe('OpenRGB Module Index', () => {
       const fromIndex = await import('../../src/openrgb/index.js');
 
       // Import from individual modules
-      const { PacketType } = await import('../../src/openrgb/constants.js');
+      const { PacketType } = await import('../../src/openrgb/enums.js');
       const { BinaryParser } = await import('../../src/openrgb/parser.js');
       const { DeviceData } = await import('../../src/openrgb/device.js');
       const { OpenRGBClient } = await import('../../src/openrgb/client.js');

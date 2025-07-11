@@ -1,8 +1,8 @@
 // @ts-nocheck
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import { PacketType } from './constants.js';
 import { DeviceData } from './device.js';
+import { PacketType } from './enums.js';
 
 export class NetworkClient {
   constructor(address = '127.0.0.1', port = 6742, name = 'GNOME-OpenRGB-AccentSync') {
