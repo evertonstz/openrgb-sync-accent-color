@@ -76,6 +76,14 @@ jobs:
     - name: Package extension
       run: make pack
       
+    - name: Verify package exists
+      run: |
+        if [ ! -f "openrgb-sync-accent-color.zip" ]; then
+          echo "❌ Error: Extension package not found!"
+          exit 1
+        fi
+        echo "✅ Package verified: $(ls -lh openrgb-sync-accent-color.zip)"
+      
     - name: Upload to GNOME Extensions
       uses: andyholmes/gnome-shell-extension-uploader@main
       with:
@@ -83,7 +91,7 @@ jobs:
         file: 'openrgb-sync-accent-color.zip'
         username: ${{ secrets.GNOME_EXTENSIONS_USERNAME }}
         password: ${{ secrets.GNOME_EXTENSIONS_PASSWORD }}
-      
+
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
@@ -108,3 +116,13 @@ jobs:
           openrgb-sync-accent-color.zip
         draft: false
         prerelease: false
+
+    - name: Notify Success or Error
+      if: always()
+      run: |
+        CHANNEL="${{ secrets.NTFY_CHANNEL }}"
+        if [ "${{ job.status }}" == "success" ]; then
+          curl -H "Title: Extension Reelease Success" -d "Check status about version ${{ github.event.release.tag_name }} at: https://extensions.gnome.org/extension/8331/openrgb-accent-color-sync/" ntfy.sh/$CHANNEL
+        else
+          curl -H "Title: Extension Reelease Failure" -d "Version ${{ github.event.release.tag_name }} not released" ntfy.sh/$CHANNEL
+        fi
