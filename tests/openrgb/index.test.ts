@@ -6,7 +6,6 @@ describe('OpenRGB Module Index', () => {
       const openrgb = await import('../../src/openrgb/index.js');
 
       expect(openrgb.PacketType).toBeDefined();
-      expect(openrgb.BinaryParser).toBeDefined();
       expect(openrgb.DeviceData).toBeDefined();
       expect(openrgb.OpenRGBClient).toBeDefined();
     });
@@ -16,21 +15,16 @@ describe('OpenRGB Module Index', () => {
 
       // Check that all exports are defined
       expect(typeof openrgb.PacketType).toBe('object');
-      expect(typeof openrgb.BinaryParser).toBe('function');
       expect(typeof openrgb.DeviceData).toBe('function');
       expect(typeof openrgb.OpenRGBClient).toBe('function');
     });
 
     it('should allow creating instances of exported classes', async () => {
-      const { BinaryParser, DeviceData, OpenRGBClient } = await import(
+      const { DeviceData, OpenRGBClient } = await import(
         '../../src/openrgb/index.js'
       );
 
       // Test that we can create instances
-      const buffer = new ArrayBuffer(8);
-      const parser = new BinaryParser(buffer);
-      expect(parser).toBeInstanceOf(BinaryParser);
-
       const deviceData = new DeviceData();
       expect(deviceData).toBeInstanceOf(DeviceData);
 
@@ -46,13 +40,11 @@ describe('OpenRGB Module Index', () => {
 
       // Import from individual modules
       const { PacketType } = await import('../../src/openrgb/enums.js');
-      const { BinaryParser } = await import('../../src/openrgb/parser.js');
       const { DeviceData } = await import('../../src/openrgb/device.js');
       const { OpenRGBClient } = await import('../../src/openrgb/client.js');
 
       // Verify they're the same objects
       expect(fromIndex.PacketType).toBe(PacketType);
-      expect(fromIndex.BinaryParser).toBe(BinaryParser);
       expect(fromIndex.DeviceData).toBe(DeviceData);
       expect(fromIndex.OpenRGBClient).toBe(OpenRGBClient);
     });

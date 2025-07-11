@@ -1,9 +1,4 @@
-interface RGBColor {
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-}
+import type { RGBColor } from './types.js';
 
 export class BinaryParser {
   private data: ArrayBuffer;
@@ -80,5 +75,17 @@ export class BinaryParser {
 
   hasMoreData(): boolean {
     return this.offset < this.data.byteLength;
+  }
+
+    getCurrentOffset(): number {
+    return this.offset;
+  }
+
+  getDataLength(): number {
+    return this.data.byteLength;
+  }
+
+  getRemainingBytes(): number {
+    return this.data.byteLength - this.offset;
   }
 }

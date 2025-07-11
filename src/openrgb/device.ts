@@ -1,7 +1,17 @@
-// @ts-nocheck
 import { BinaryParser } from './parser.js';
+import type { DeviceLED, DeviceMode, DeviceZone, RGBColor } from './types.js';
 
 export class DeviceData {
+  name: string;
+  description: string;
+  version: string;
+  serial: string;
+  location: string;
+  modes: DeviceMode[];
+  zones: DeviceZone[];
+  leds: DeviceLED[];
+  colors: RGBColor[];
+
   constructor() {
     this.name = '';
     this.description = '';
@@ -14,7 +24,7 @@ export class DeviceData {
     this.colors = [];
   }
 
-  static parse(data) {
+  static parse(data: ArrayBuffer): DeviceData {
     const parser = new BinaryParser(data);
     const device = new DeviceData();
 
@@ -23,18 +33,18 @@ export class DeviceData {
 
       const debugView = new Uint8Array(data, 0, Math.min(64, data.byteLength));
       const hexString = Array.from(debugView)
-        .map((b) => b.toString(16).padStart(2, '0'))
+        .map((b: number) => b.toString(16).padStart(2, '0'))
         .join(' ');
       const asciiString = Array.from(debugView)
-        .map((b) => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.'))
+        .map((b: number) => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.'))
         .join('');
       console.log(`OpenRGB: First 64 bytes (hex): ${hexString}`);
       console.log(`OpenRGB: First 64 bytes (ASCII): ${asciiString}`);
 
       console.log('OpenRGB: Parsing binary protocol structure');
 
-      const dataSize = parser.readUint32();
-      const commandType = parser.readUint32();
+      const dataSize: number = parser.readUint32();
+      const commandType: number = parser.readUint32();
       console.log(`OpenRGB: Header: data_size=${dataSize}, command_type=${commandType}`);
 
       device.name = parser.readString();
@@ -52,12 +62,12 @@ export class DeviceData {
       device.location = parser.readString();
       console.log(`OpenRGB: Location: "${device.location}"`);
 
-      const modeCount = parser.readUint16();
-      const activeModeIndex = parser.readUint32();
+      const modeCount: number = parser.readUint16();
+      const activeModeIndex: number = parser.readUint32();
       console.log(`OpenRGB: Modes: ${modeCount}, Active: ${activeModeIndex}`);
 
       for (let i = 0; i < modeCount; i++) {
-        const mode = {
+        const mode: DeviceMode = {
           name: parser.readString(),
           value: parser.readUint32(),
           flags: parser.readUint32(),
@@ -68,10 +78,10 @@ export class DeviceData {
           speed: parser.readUint32(),
           direction: parser.readUint32(),
           colorMode: parser.readUint32(),
+          colors: [],
         };
 
-        const modeColorCount = parser.readUint16();
-        mode.colors = [];
+        const modeColorCount: number = parser.readUint16();
         for (let j = 0; j < modeColorCount; j++) {
           mode.colors.push(parser.readRGBColor());
         }
@@ -80,11 +90,11 @@ export class DeviceData {
         console.log(`OpenRGB: Mode ${i}: "${mode.name}" (${mode.colors.length} colors)`);
       }
 
-      const zoneCount = parser.readUint16();
+      const zoneCount: number = parser.readUint16();
       console.log(`OpenRGB: Zones: ${zoneCount}`);
 
       for (let i = 0; i < zoneCount; i++) {
-        const zone = {
+        const zone: DeviceZone = {
           name: parser.readString(),
           type: parser.readUint32(),
           ledsMin: parser.readUint32(),
@@ -92,11 +102,11 @@ export class DeviceData {
           ledsCount: parser.readUint32(),
         };
 
-        const matrixLength = parser.readUint16();
+        const matrixLength: number = parser.readUint16();
         if (matrixLength > 0) {
           zone.matrixHeight = parser.readUint32();
           zone.matrixWidth = parser.readUint32();
-          const matrixDataLength = matrixLength - 8;
+          const matrixDataLength: number = matrixLength - 8;
           if (matrixDataLength > 0) {
             parser.skip(matrixDataLength);
           }
@@ -106,11 +116,11 @@ export class DeviceData {
         console.log(`OpenRGB: Zone ${i}: "${zone.name}" (${zone.ledsCount} LEDs)`);
       }
 
-      const ledCount = parser.readUint16();
+      const ledCount: number = parser.readUint16();
       console.log(`OpenRGB: LEDs: ${ledCount}`);
 
       for (let i = 0; i < ledCount; i++) {
-        const led = {
+        const led: DeviceLED = {
           name: parser.readString(),
           value: parser.readUint32(),
         };
@@ -119,11 +129,11 @@ export class DeviceData {
         console.log(`OpenRGB: LED ${i}: "${led.name}" (value: ${led.value})`);
       }
 
-      const colorCount = parser.readUint16();
+      const colorCount: number = parser.readUint16();
       console.log(`OpenRGB: Colors: ${colorCount}`);
 
       for (let i = 0; i < colorCount; i++) {
-        const color = parser.readRGBColor();
+        const color: RGBColor = parser.readRGBColor();
         device.colors.push(color);
       }
 
@@ -131,16 +141,17 @@ export class DeviceData {
         `OpenRGB: Successfully parsed device: ${device.name} with ${device.leds.length} LEDs`,
       );
       return device;
-    } catch (e) {
-      console.log(`OpenRGB: Error parsing device: ${e.message}`);
-      console.log(`OpenRGB: Error occurred at offset ${parser.offset}`);
+    } catch (e: unknown) {
+      const error = e as Error;
+      console.log(`OpenRGB: Error parsing device: ${error.message}`);
+      console.log(`OpenRGB: Error occurred at offset ${parser.getCurrentOffset()}`);
 
-      if (parser.offset > 0) {
-        const contextStart = Math.max(0, parser.offset - 20);
-        const contextEnd = Math.min(data.byteLength, parser.offset + 20);
+      if (parser.getCurrentOffset() > 0) {
+        const contextStart: number = Math.max(0, parser.getCurrentOffset() - 20);
+        const contextEnd: number = Math.min(data.byteLength, parser.getCurrentOffset() + 20);
         const contextView = new Uint8Array(data, contextStart, contextEnd - contextStart);
-        const contextHex = Array.from(contextView)
-          .map((b) => b.toString(16).padStart(2, '0'))
+        const contextHex: string = Array.from(contextView)
+          .map((b: number) => b.toString(16).padStart(2, '0'))
           .join(' ');
         console.log(`OpenRGB: Context (${contextStart}-${contextEnd}): ${contextHex}`);
       }
