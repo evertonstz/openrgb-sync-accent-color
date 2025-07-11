@@ -1,31 +1,90 @@
 # OpenRGB SDK Implementation
 
-This directory contains a TypeScript/JavaScript implementation of the OpenRGB SDK protocol for GNOME Shell extensions. It provides a clean, modular interface to communicate with OpenRGB devices over the network.
+This directory contains a modernized TypeScript implementation of the OpenRGB SDK protocol for GNOME Shell extensions. It provides a clean, type-safe, and modular interface to communicate with OpenRGB devices over the network.
 
 ## Overview
 
 The OpenRGB SDK allows applications to communicate with OpenRGB instances running in server mode. This implementation provides all the necessary components to:
 
-- Connect to OpenRGB servers
-- Discover RGB devices
+- Connect to OpenRGB servers with robust error handling
+- Discover RGB devices with type safety
 - Read device information and capabilities
 - Control device colors and modes
+- Handle protocol errors gracefully
 
 ## Architecture
 
-The SDK is organized into several modular components:
+The SDK is organized into several modular components with clear separation of concerns:
 
 ```
 src/openrgb/
-├── constants.ts    # Protocol constants and packet types
+├── types.ts        # Core protocol types and validation utilities
+├── errors.ts       # Custom error classes and error handling
+├── enums.ts        # Protocol enums (packet types, etc.)
+├── constants.ts    # Protocol constants and configuration
 ├── parser.ts       # Binary data parsing utilities
 ├── device.ts       # Device data structures and parsing
 ├── network.ts      # Low-level network communication
 ├── client.ts       # High-level client interface
-└── index.ts        # Main exports
+└── index.ts        # Centralized exports
 ```
 
 ## Core Components
+
+### Protocol Types (`types.ts`)
+
+Centralized type definitions and validation utilities for the OpenRGB protocol:
+
+```typescript
+export interface RGBColor {
+  r: number;  // Red component (0-255)
+  g: number;  // Green component (0-255)
+  b: number;  // Blue component (0-255)
+  a: number;  // Alpha component (0-255)
+}
+
+export interface DeviceMode {
+  name: string;
+  value: number;
+  flags: number;
+  // ... additional mode properties
+}
+
+// Validation utilities
+export function isValidRGBColor(obj: unknown): obj is RGBColor;
+export function validateRGBColor(color: RGBColor): void;
+export function createRGBColor(r: number, g: number, b: number, a?: number): RGBColor;
+```
+
+### Error Handling (`errors.ts`)
+
+Custom error classes for comprehensive error handling:
+
+```typescript
+export class OpenRGBError extends Error;
+export class OpenRGBConnectionError extends OpenRGBError;
+export class OpenRGBProtocolError extends OpenRGBError;
+export class OpenRGBParseError extends OpenRGBError;
+export class OpenRGBTimeoutError extends OpenRGBError;
+
+// Utility functions
+export function isOpenRGBError(error: unknown): error is OpenRGBError;
+export function formatErrorMessage(error: unknown): string;
+```
+
+### Protocol Enums (`enums.ts`)
+
+Type-safe enums for protocol constants:
+
+```typescript
+export enum PacketType {
+  REQUEST_CONTROLLER_COUNT = 0,
+  REQUEST_CONTROLLER_DATA = 1,
+  RGBCONTROLLER_UPDATELEDS = 1050,
+  RGBCONTROLLER_UPDATEMODE = 1054,
+  SET_CLIENT_NAME = 50,
+}
+```
 
 ### Constants (`constants.ts`)
 
@@ -43,34 +102,39 @@ export const PacketType = {
 
 ### Binary Parser (`parser.ts`)
 
-Provides utilities for parsing binary protocol data with proper endianness handling:
+Provides utilities for parsing binary protocol data with proper endianness handling and error recovery:
 
 ```typescript
 export class BinaryParser {
   readUint32(): number      // Read 32-bit unsigned integer (little endian)
   readUint16(): number      // Read 16-bit unsigned integer (little endian)
   readString(): string      // Read length-prefixed string
-  readRGBColor(): object    // Read RGBA color data
+  readRGBColor(): RGBColor  // Read RGBA color data
   skip(bytes: number): void // Skip bytes in the buffer
   hasMoreData(): boolean    // Check if more data is available
+  
+  // Enhanced error handling with context
+  private validateRead(bytes: number): void
+  private getContext(errorOffset: number): string
 }
 ```
 
 ### Device Data (`device.ts`)
 
-Handles device information parsing and representation:
+Handles device information parsing and representation with type safety:
 
 ```typescript
 export class DeviceData {
-  name: string          // Device name
-  description: string   // Device description
-  version: string       // Device version
-  serial: string        // Device serial number
-  location: string      // Device location
-  modes: Mode[]         // Available device modes
-  zones: Zone[]         // Device zones
-  leds: LED[]          // Individual LEDs
-  colors: Color[]      // Current colors
+  name: string              // Device name
+  description: string       // Device description
+  version: string          // Device version
+  serial: string           // Device serial number
+  location: string         // Device location
+  modes: DeviceMode[]      // Available device modes
+  zones: DeviceZone[]      // Device zones
+  leds: DeviceLED[]        // Individual LEDs
+  colors: RGBColor[]       // Current colors
+  directModeIndex?: number // Index of direct control mode
   
   static parse(data: ArrayBuffer): DeviceData
 }
@@ -78,7 +142,7 @@ export class DeviceData {
 
 ### Network Client (`network.ts`)
 
-Low-level network communication with OpenRGB server:
+Low-level network communication with OpenRGB server, featuring robust error handling:
 
 ```typescript
 export class NetworkClient {
@@ -90,13 +154,17 @@ export class NetworkClient {
   async setClientName(): Promise<void>
   async getControllerCount(): Promise<number>
   async getControllerData(deviceId: number): Promise<ArrayBuffer>
-  async updateLEDs(deviceId: number, colors: Color[]): Promise<void>
+  async updateLEDs(deviceId: number, colors: RGBColor[]): Promise<void>
+  
+  // Enhanced connection state management
+  get connected(): boolean
+  private validateConnection(): void
 }
 ```
 
 ### OpenRGB Client (`client.ts`)
 
-High-level interface for OpenRGB operations:
+High-level interface for OpenRGB operations with comprehensive error handling:
 
 ```typescript
 export class OpenRGBClient {
@@ -104,10 +172,15 @@ export class OpenRGBClient {
   
   async connect(): Promise<void>
   disconnect(): void
-  async discoverDevices(): Promise<void>
-  async setDeviceColor(deviceId: number, color: Color): Promise<object>
-  async setAllDevicesColor(color: Color): Promise<object[]>
+  async discoverDevices(): Promise<DeviceData[]>
+  async setDeviceColor(deviceId: number, color: RGBColor): Promise<object>
+  async setAllDevicesColor(color: RGBColor): Promise<object[]>
   getDevices(): DeviceData[]
+  
+  // Enhanced state management
+  get connected(): boolean
+  get devices(): DeviceData[]
+  private validateConnection(): void
 }
 ```
 
@@ -140,19 +213,19 @@ Data: Variable length based on command
 
 ### Data Types
 
-#### Color
+#### RGBColor
 ```typescript
-interface Color {
+interface RGBColor {
   r: number  // Red (0-255)
   g: number  // Green (0-255) 
   b: number  // Blue (0-255)
-  a?: number // Alpha (0-255, optional)
+  a: number  // Alpha (0-255)
 }
 ```
 
-#### Mode
+#### DeviceMode
 ```typescript
-interface Mode {
+interface DeviceMode {
   name: string
   value: number
   flags: number
@@ -163,13 +236,13 @@ interface Mode {
   speed: number
   direction: number
   colorMode: number
-  colors: Color[]
+  colors: RGBColor[]
 }
 ```
 
-#### Zone
+#### DeviceZone
 ```typescript
-interface Zone {
+interface DeviceZone {
   name: string
   type: number
   ledsMin: number
@@ -179,9 +252,9 @@ interface Zone {
 }
 ```
 
-#### LED
+#### DeviceLED
 ```typescript
-interface LED {
+interface DeviceLED {
   name: string
   value: number
 }
@@ -190,41 +263,77 @@ interface LED {
 ## Usage Example
 
 ```typescript
-import { OpenRGBClient } from './src/openrgb/index.js';
+import { 
+  OpenRGBClient, 
+  createRGBColor, 
+  OpenRGBConnectionError 
+} from './src/openrgb/index.js';
 
-// Create client instance
-const client = new OpenRGBClient('127.0.0.1', 6742, 'MyApp');
+try {
+  // Create client instance
+  const client = new OpenRGBClient('127.0.0.1', 6742, 'MyApp');
 
-// Connect and discover devices
-await client.connect();
-await client.discoverDevices();
+  // Connect and discover devices
+  await client.connect();
+  const devices = await client.discoverDevices();
+  
+  console.log(`Found ${devices.length} devices`);
 
-// Set all devices to red
-const red = { r: 255, g: 0, b: 0 };
-await client.setAllDevicesColor(red);
+  // Set all devices to red using type-safe color creation
+  const red = createRGBColor(255, 0, 0);
+  await client.setAllDevicesColor(red);
 
-// Set specific device color
-await client.setDeviceColor(0, { r: 0, g: 255, b: 0 });
+  // Set specific device color
+  await client.setDeviceColor(0, createRGBColor(0, 255, 0));
 
-// Cleanup
-client.disconnect();
+  // Cleanup
+  client.disconnect();
+} catch (error) {
+  if (error instanceof OpenRGBConnectionError) {
+    console.error('Connection failed:', error.message);
+  } else {
+    console.error('Unexpected error:', error);
+  }
+}
 ```
 
 ## Error Handling
 
-The SDK includes comprehensive error handling:
+The modernized SDK includes comprehensive error handling with specific error types:
 
-- **Connection errors**: Network connection failures
-- **Protocol errors**: Invalid packet format or responses
-- **Device errors**: Device-specific operation failures
-- **Timeout errors**: Operations that exceed time limits
+```typescript
+try {
+  await client.connect();
+} catch (error) {
+  if (error instanceof OpenRGBConnectionError) {
+    console.error(`Connection failed to ${error.address}:${error.port}`);
+  } else if (error instanceof OpenRGBProtocolError) {
+    console.error(`Protocol error with packet type ${error.packetType}`);
+  } else if (error instanceof OpenRGBTimeoutError) {
+    console.error(`Operation timed out after ${error.timeout}ms`);
+  } else if (error instanceof OpenRGBParseError) {
+    console.error(`Parse error at offset ${error.offset}: ${error.message}`);
+  } else {
+    console.error('Unexpected error:', formatErrorMessage(error));
+  }
+}
+```
 
-All methods that can fail throw descriptive Error objects with meaningful messages.
+**Error Types:**
+- **OpenRGBConnectionError**: Network connection failures with address/port context
+- **OpenRGBProtocolError**: Invalid packet format or responses with packet type info
+- **OpenRGBParseError**: Binary data parsing failures with offset information
+- **OpenRGBTimeoutError**: Operations that exceed time limits
+- **OpenRGBError**: Base class for all OpenRGB-specific errors
+
+**Error Utilities:**
+- `isOpenRGBError(error)`: Type guard to check if error is OpenRGB-related
+- `formatErrorMessage(error)`: Safe error message formatting for unknown errors
 
 ## Dependencies
 
 - **GJS/GNOME**: Uses `Gio` for network operations and `GLib` for utilities
-- **TypeScript**: Written in TypeScript for better type safety and development experience
+- **TypeScript**: Written in modern TypeScript with strict type safety enabled
 - **No external libraries**: Pure implementation using only GNOME platform APIs
 
 ## Thread Safety
@@ -234,25 +343,16 @@ The implementation is designed for single-threaded use within GNOME Shell extens
 ## Performance Considerations
 
 - **Connection pooling**: Reuses single connection for multiple operations
-- **Efficient parsing**: Minimal allocations during binary data parsing
+- **Efficient parsing**: Minimal allocations during binary data parsing with proper error recovery
 - **Timeout management**: Prevents hanging operations with configurable timeouts
 - **Memory management**: Proper cleanup of resources and event handlers
+- **Type-safe operations**: Compile-time checking reduces runtime overhead
 
 ## Compatibility
 
 - **OpenRGB Version**: Compatible with OpenRGB 0.5+ server protocol
 - **GNOME Shell**: Requires GNOME Shell 45+ with GJS support
 - **Platforms**: Linux systems with GNOME desktop environment
-
-## Development
-
-When extending this SDK:
-
-1. **Add packet types** in `constants.ts`
-2. **Extend parser** in `parser.ts` for new data formats
-3. **Add device capabilities** in `device.ts` 
-4. **Implement network operations** in `network.ts`
-5. **Expose high-level APIs** in `client.ts`
 
 ## License
 

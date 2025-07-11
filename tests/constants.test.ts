@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { PacketType } from '../src/openrgb/constants.js';
+import { describe, expect, it } from 'vitest';
+import { PacketType } from '../src/openrgb/enums.js';
 
 describe('PacketType Constants', () => {
   describe('Packet type values', () => {
@@ -43,7 +43,7 @@ describe('PacketType Constants', () => {
         expect(PacketType.REQUEST_CONTROLLER_COUNT).toBe(999);
         // Restore original value
         (PacketType as any).REQUEST_CONTROLLER_COUNT = originalValue;
-      } catch (error) {
+      } catch (_error) {
         // Object is frozen/immutable
         expect(PacketType.REQUEST_CONTROLLER_COUNT).toBe(originalValue);
       }
@@ -63,7 +63,9 @@ describe('PacketType Constants', () => {
 
   describe('Packet type validation', () => {
     it('should validate that packet types are non-negative integers', () => {
-      Object.values(PacketType).forEach((value) => {
+      // Filter out string keys that TypeScript enums include
+      const numericValues = Object.values(PacketType).filter(value => typeof value === 'number');
+      numericValues.forEach((value) => {
         expect(typeof value).toBe('number');
         expect(value).toBeGreaterThanOrEqual(0);
         expect(Number.isInteger(value)).toBe(true);

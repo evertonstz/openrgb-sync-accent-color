@@ -2,7 +2,8 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { DeviceData } from './device.js';
 import { PacketType } from './enums.js';
-import type { RGBColor } from './types.js';
+import { OpenRGBConnectionError } from './errors.js';
+import { type RGBColor, validateRGBColor } from './types.js';
 
 export class NetworkClient {
   private address: string;
@@ -12,7 +13,11 @@ export class NetworkClient {
   private connected: boolean;
   private timeouts: Set<number>;
 
-  constructor(address: string = '127.0.0.1', port: number = 6742, name: string = 'GNOME-OpenRGB-AccentSync') {
+  constructor(
+    address: string = '127.0.0.1',
+    port: number = 6742,
+    name: string = 'GNOME-OpenRGB-AccentSync',
+  ) {
     this.address = address;
     this.port = port;
     this.name = name;
@@ -159,7 +164,7 @@ export class NetworkClient {
           const data = readBytes?.get_data();
 
           if (data && data.length >= 20) {
-            const count = data[16] | (data[17] << 8) | (data[18] << 16) | (data[19] << 24);
+            const count = data[16]! | (data[17]! << 8) | (data[18]! << 16) | (data[19]! << 24);
             resolve(count);
           } else {
             reject(new Error('Invalid response'));
@@ -208,7 +213,9 @@ export class NetworkClient {
                 );
                 expectedDataSize = view.getUint32(12, true);
                 headerReceived = true;
-                console.log(`OpenRGB: Device ${deviceId} - Expected data size: ${expectedDataSize}`);
+                console.log(
+                  `OpenRGB: Device ${deviceId} - Expected data size: ${expectedDataSize}`,
+                );
               }
 
               if (headerReceived && totalBuffer.length >= 16 + expectedDataSize) {
@@ -268,6 +275,9 @@ export class NetworkClient {
   }
 
   async updateLeds(deviceId: number, color: RGBColor, ledCount: number): Promise<void> {
+    // Validate and normalize the color input
+    const validatedColor = validateRGBColor(color);
+    
     const totalSize = 6 + ledCount * 4;
     const dataPayload = new ArrayBuffer(totalSize);
     const view = new DataView(dataPayload);
@@ -277,9 +287,9 @@ export class NetworkClient {
 
     for (let i = 0; i < ledCount; i++) {
       const offset = 6 + i * 4;
-      view.setUint8(offset, color.r);
-      view.setUint8(offset + 1, color.g);
-      view.setUint8(offset + 2, color.b);
+      view.setUint8(offset, validatedColor.r);
+      view.setUint8(offset + 1, validatedColor.g);
+      view.setUint8(offset + 2, validatedColor.b);
       view.setUint8(offset + 3, 0);
     }
 
@@ -288,7 +298,7 @@ export class NetworkClient {
 
   async setDeviceMode(deviceId: number, modeIndex: number): Promise<void> {
     if (!this.connected) {
-      throw new Error('Not connected to OpenRGB server');
+      throw new OpenRGBConnectionError('Not connected to OpenRGB server');
     }
 
     console.log(`OpenRGB: Setting device ${deviceId} to mode ${modeIndex}`);

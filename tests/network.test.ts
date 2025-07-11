@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 // Since NetworkClient depends on GJS/GTK which isn't available in test environment,
 // we'll create tests that can work with mocks and test the basic structure

@@ -1,6 +1,7 @@
 import type { DeviceData } from './device.js';
+import { OpenRGBConnectionError, OpenRGBError } from './errors.js';
 import { NetworkClient } from './network.js';
-import type { RGBColor } from './types.js';
+import { type RGBColor, validateRGBColor } from './types.js';
 
 interface Device {
   id: number;
@@ -51,7 +52,7 @@ export class OpenRGBClient {
 
   async discoverDevices(): Promise<Device[]> {
     if (!this.connected) {
-      throw new Error('Not connected');
+      throw new OpenRGBConnectionError('Client is not connected to OpenRGB server');
     }
 
     console.log('OpenRGB: Starting device discovery...');
@@ -69,7 +70,8 @@ export class OpenRGBClient {
 
           let directModeIndex = 0;
           for (let j = 0; j < deviceData.modes.length; j++) {
-            if (deviceData.modes[j].name.toLowerCase().includes('direct')) {
+            const mode = deviceData.modes[j];
+            if (mode?.name.toLowerCase().includes('direct')) {
               directModeIndex = j;
               break;
             }
@@ -119,8 +121,9 @@ export class OpenRGBClient {
         this.devices = [];
       }
     } catch (error) {
-      console.error('OpenRGB: Device discovery failed:', (error as Error).message);
-      this.devices = [];
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('OpenRGB: Device discovery failed:', message);
+      throw new OpenRGBError(`Device discovery failed: ${message}`);
     }
 
     console.log(`OpenRGB: Device discovery complete - ${this.devices.length} devices`);
@@ -131,9 +134,11 @@ export class OpenRGBClient {
     const results: SyncResult[] = [];
 
     if (!this.connected) {
-      console.warn('OpenRGB: Not connected');
-      return results;
+      throw new OpenRGBConnectionError('Client is not connected to OpenRGB server');
     }
+
+    // Validate and normalize the color input
+    const validatedColor = validateRGBColor(color);
 
     const selectedDeviceIds = this.settings
       ? this.settings.get_strv('selected-devices').map((id) => parseInt(id))
@@ -165,15 +170,16 @@ export class OpenRGBClient {
             await this.networkClient.setDeviceMode(device.id, device.directModeIndex);
             console.log(
               `OpenRGB: Device ${device.id} - Set to direct mode ${device.directModeIndex} before update`,
-            );            } catch (modeError) {
-              console.warn(
-                `OpenRGB: Failed to set device ${device.id} to direct mode before update:`,
-                (modeError as Error).message,
-              );
-            }
+            );
+          } catch (modeError) {
+            console.warn(
+              `OpenRGB: Failed to set device ${device.id} to direct mode before update:`,
+              (modeError as Error).message,
+            );
+          }
         }
 
-        await this.networkClient.updateLeds(device.id, color, device.ledCount);
+        await this.networkClient.updateLeds(device.id, validatedColor, device.ledCount);
         console.log(`OpenRGB: Device ${device.id} - Color update sent successfully`);
         results.push({ deviceId: device.id, success: true });
       } catch (error) {
