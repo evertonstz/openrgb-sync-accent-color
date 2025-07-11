@@ -129,7 +129,9 @@ describe('OpenRGBClient', () => {
 
     it('should throw error when not connected', async () => {
       client.disconnect();
-      await expect(client.discoverDevices()).rejects.toThrow('Client is not connected to OpenRGB server');
+      await expect(client.discoverDevices()).rejects.toThrow(
+        'Client is not connected to OpenRGB server',
+      );
     });
 
     it('should find direct mode for devices', async () => {
@@ -165,7 +167,9 @@ describe('OpenRGBClient', () => {
         .mockRejectedValue(new Error('Discovery failed'));
 
       // Should throw OpenRGBError with descriptive message
-      await expect(client.discoverDevices()).rejects.toThrow('Device discovery failed: Discovery failed');
+      await expect(client.discoverDevices()).rejects.toThrow(
+        'Device discovery failed: Discovery failed',
+      );
     });
 
     it('should handle individual device errors gracefully', async () => {

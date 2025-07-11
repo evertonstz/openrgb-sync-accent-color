@@ -63,11 +63,13 @@ describe('PacketType Constants', () => {
 
   describe('Packet type validation', () => {
     it('should validate that packet types are non-negative integers', () => {
-      Object.values(PacketType).filter(value => typeof value === 'number').forEach((value) => {
-        expect(typeof value).toBe('number');
-        expect(value).toBeGreaterThanOrEqual(0);
-        expect(Number.isInteger(value)).toBe(true);
-      });
+      Object.values(PacketType)
+        .filter((value) => typeof value === 'number')
+        .forEach((value) => {
+          expect(typeof value).toBe('number');
+          expect(value).toBeGreaterThanOrEqual(0);
+          expect(Number.isInteger(value)).toBe(true);
+        });
     });
 
     it('should have logical packet type ordering', () => {

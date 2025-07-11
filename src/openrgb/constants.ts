@@ -1,6 +1,6 @@
 /**
  * OpenRGB Protocol Constants
- * 
+ *
  * These constants define various protocol-level values used throughout
  * the OpenRGB communication protocol.
  */

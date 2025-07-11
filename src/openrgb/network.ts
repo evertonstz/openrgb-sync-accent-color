@@ -277,7 +277,7 @@ export class NetworkClient {
   async updateLeds(deviceId: number, color: RGBColor, ledCount: number): Promise<void> {
     // Validate and normalize the color input
     const validatedColor = validateRGBColor(color);
-    
+
     const totalSize = 6 + ledCount * 4;
     const dataPayload = new ArrayBuffer(totalSize);
     const view = new DataView(dataPayload);

@@ -115,20 +115,20 @@ export function createRGBColor(
  */
 export function isValidRGBColor(obj: unknown): obj is RGBColor {
   if (typeof obj !== 'object' || obj === null) return false;
-  
+
   const color = obj as Record<string, unknown>;
   return (
-    typeof color.r === 'number' &&
-    color.r >= 0 &&
-    color.r <= 255 &&
-    typeof color.g === 'number' &&
-    color.g >= 0 &&
-    color.g <= 255 &&
-    typeof color.b === 'number' &&
-    color.b >= 0 &&
-    color.b <= 255 &&
-    typeof color.a === 'number' &&
-    color.a >= 0 &&
-    color.a <= 255
+    typeof color['r'] === 'number' &&
+    color['r'] >= 0 &&
+    color['r'] <= 255 &&
+    typeof color['g'] === 'number' &&
+    color['g'] >= 0 &&
+    color['g'] <= 255 &&
+    typeof color['b'] === 'number' &&
+    color['b'] >= 0 &&
+    color['b'] <= 255 &&
+    typeof color['a'] === 'number' &&
+    color['a'] >= 0 &&
+    color['a'] <= 255
   );
 }

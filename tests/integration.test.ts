@@ -99,7 +99,7 @@ describe('OpenRGB Module Integration', () => {
 
       // Verify packet types are used consistently across modules
       // Filter out string keys from TypeScript enum (only keep numeric values)
-      const packetTypes = Object.values(PacketType).filter(value => typeof value === 'number');
+      const packetTypes = Object.values(PacketType).filter((value) => typeof value === 'number');
       packetTypes.forEach((type) => {
         expect(typeof type).toBe('number');
         expect(Number.isInteger(type)).toBe(true);

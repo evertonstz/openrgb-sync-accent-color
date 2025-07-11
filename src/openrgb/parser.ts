@@ -15,7 +15,7 @@ export class BinaryParser {
       throw new OpenRGBParseError(
         `Cannot read Uint32 at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
         this.offset,
-        this.data.byteLength
+        this.data.byteLength,
       );
     }
     const view = new DataView(this.data);
@@ -29,7 +29,7 @@ export class BinaryParser {
       throw new OpenRGBParseError(
         `Cannot read Uint16 at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
         this.offset,
-        this.data.byteLength
+        this.data.byteLength,
       );
     }
     const view = new DataView(this.data);
@@ -44,7 +44,7 @@ export class BinaryParser {
       throw new OpenRGBParseError(
         `Cannot read string of length ${length} at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
         this.offset,
-        this.data.byteLength
+        this.data.byteLength,
       );
     }
 
@@ -60,7 +60,7 @@ export class BinaryParser {
       throw new OpenRGBParseError(
         `Cannot read RGBColor at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
         this.offset,
-        this.data.byteLength
+        this.data.byteLength,
       );
     }
 
@@ -80,7 +80,7 @@ export class BinaryParser {
       throw new OpenRGBParseError(
         `Cannot skip ${bytes} bytes at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
         this.offset,
-        this.data.byteLength
+        this.data.byteLength,
       );
     }
     this.offset += bytes;

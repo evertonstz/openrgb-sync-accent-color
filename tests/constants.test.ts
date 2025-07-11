@@ -64,7 +64,7 @@ describe('PacketType Constants', () => {
   describe('Packet type validation', () => {
     it('should validate that packet types are non-negative integers', () => {
       // Filter out string keys that TypeScript enums include
-      const numericValues = Object.values(PacketType).filter(value => typeof value === 'number');
+      const numericValues = Object.values(PacketType).filter((value) => typeof value === 'number');
       numericValues.forEach((value) => {
         expect(typeof value).toBe('number');
         expect(value).toBeGreaterThanOrEqual(0);
