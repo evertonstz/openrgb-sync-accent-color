@@ -71,38 +71,38 @@ export interface IOpenRGBAccentSyncExtension {
   openrgbClient: OpenRGBClient | null;
   settings: Gio.Settings | null;
   lastKnownColor: RGBColor | null;
-  
+
   // Signal management
   accentColorSignal: SignalId | null;
   accentColorSignal2: SignalId | null;
-  
+
   // Timer management
   periodicCheckTimer: TimerId | null;
   reconnectionTimer: TimerId | null;
   syncTimeouts: Set<TimerId>;
-  
+
   // Reconnection state
   reconnectionAttempts: number;
   maxReconnectionAttempts: number;
   reconnectionDelay: number;
-  
+
   // Sync state
   syncInProgress: boolean;
-  
+
   // Core methods
   enable(): void;
   disable(): void;
-  
+
   // Timeout management
   addTimeout(callback: TimeoutCallback, delay: number): TimerId;
   clearAllTimeouts(): void;
-  
+
   // OpenRGB connection management
   initializeOpenRGB(): Promise<void>;
   startReconnectionTimer(): void;
   ensureOpenRGBConnection(): Promise<boolean>;
   forceReconnection(): Promise<void>;
-  
+
   // Color management
   syncCurrentAccentColor(): void;
   monitorAccentColor(): void;
@@ -118,9 +118,21 @@ export namespace TypeGuards {
    * Type guard to check if a value is a valid accent color name
    */
   export function isAccentColorName(value: unknown): value is AccentColorName {
-    return typeof value === 'string' && [
-      'blue', 'teal', 'green', 'yellow', 'orange', 'red', 'pink', 'purple', 'slate', 'default'
-    ].includes(value);
+    return (
+      typeof value === 'string' &&
+      [
+        'blue',
+        'teal',
+        'green',
+        'yellow',
+        'orange',
+        'red',
+        'pink',
+        'purple',
+        'slate',
+        'default',
+      ].includes(value)
+    );
   }
 
   /**
@@ -146,23 +158,23 @@ export const ExtensionConstants = {
   DEFAULT_HOST: '127.0.0.1',
   DEFAULT_PORT: 6742,
   DEFAULT_CLIENT_NAME: 'GNOME-OpenRGB-AccentSync',
-  
+
   // Timer settings
   DEFAULT_SYNC_DELAY: 0,
   PERIODIC_CHECK_INTERVAL: 2000,
   DEFAULT_RECONNECTION_DELAY: 5000,
   MAX_RECONNECTION_DELAY: 30000,
   DEFAULT_MAX_RECONNECTION_ATTEMPTS: 10,
-  
+
   // Timeout delays
   INITIAL_SYNC_DELAY: 1000,
   SIGNAL_SYNC_DELAY: 500,
   POST_SYNC_CLEANUP_DELAY: 1000,
   INITIAL_MONITOR_DELAY: 2000,
-  
+
   // Schema IDs
   DESKTOP_INTERFACE_SCHEMA: 'org.gnome.desktop.interface',
-  
+
   // Settings keys
   ACCENT_COLOR_KEY: 'accent-color',
 } as const;

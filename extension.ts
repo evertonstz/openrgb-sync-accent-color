@@ -1,11 +1,11 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
-import { 
+import {
   formatErrorMessage,
-  isOpenRGBError, 
+  isOpenRGBError,
   OpenRGBConnectionError,
-  OpenRGBTimeoutError
+  OpenRGBTimeoutError,
 } from './src/openrgb/errors.js';
 import { OpenRGBClient } from './src/openrgb/index.js';
 import type { RGBColor } from './src/openrgb/types.js';
@@ -19,26 +19,30 @@ import {
   type TimerId,
 } from './src/types/extension.js';
 
-export default class OpenRGBAccentSyncExtension extends Extension implements IOpenRGBAccentSyncExtension {
+export default class OpenRGBAccentSyncExtension
+  extends Extension
+  implements IOpenRGBAccentSyncExtension
+{
   // Core properties
   public openrgbClient: OpenRGBClient | null = null;
   public settings: Gio.Settings | null = null;
   public lastKnownColor: RGBColor | null = null;
-  
+
   // Signal management
   public accentColorSignal: SignalId | null = null;
   public accentColorSignal2: SignalId | null = null;
-  
+
   // Timer management
   public periodicCheckTimer: TimerId | null = null;
   public reconnectionTimer: TimerId | null = null;
   public syncTimeouts: Set<TimerId> = new Set();
-  
+
   // Reconnection state
   public reconnectionAttempts: number = 0;
-  public readonly maxReconnectionAttempts: number = ExtensionConstants.DEFAULT_MAX_RECONNECTION_ATTEMPTS;
+  public readonly maxReconnectionAttempts: number =
+    ExtensionConstants.DEFAULT_MAX_RECONNECTION_ATTEMPTS;
   public readonly reconnectionDelay: number = ExtensionConstants.DEFAULT_RECONNECTION_DELAY;
-  
+
   // Sync state
   public syncInProgress: boolean = false;
 
@@ -54,7 +58,7 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
       host,
       port,
       ExtensionConstants.DEFAULT_CLIENT_NAME,
-      this.settings
+      this.settings,
     );
 
     this.initializeOpenRGB();
@@ -90,12 +94,13 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
           this.accentColorSignal2 = null;
         }
 
-        console.log('OpenRGB Accent Sync: Signals disconnected successfully');        } catch (error: unknown) {
-          console.warn(
-            'OpenRGB Accent Sync: Failed to disconnect accent color signals:',
-            error instanceof Error ? error.message : String(error),
-          );
-        }
+        console.log('OpenRGB Accent Sync: Signals disconnected successfully');
+      } catch (error: unknown) {
+        console.warn(
+          'OpenRGB Accent Sync: Failed to disconnect accent color signals:',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     }
 
     if (this.openrgbClient) {
@@ -136,7 +141,7 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
       if (!this.openrgbClient) {
         throw new Error('OpenRGB client not initialized');
       }
-      
+
       await this.openrgbClient.connect();
       await this.openrgbClient.discoverDevices();
       console.log('OpenRGB Accent Sync: OpenRGB initialized successfully');
@@ -150,13 +155,13 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
       this.syncCurrentAccentColor();
     } catch (error: unknown) {
       const errorMsg = formatErrorMessage(error);
-      
+
       if (isOpenRGBError(error)) {
         console.error(`OpenRGB Accent Sync: ${errorMsg}`);
       } else {
         console.error('OpenRGB Accent Sync: Failed to initialize OpenRGB:', errorMsg);
       }
-      
+
       this.startReconnectionTimer();
     }
   }
@@ -326,7 +331,7 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
         } catch (error: unknown) {
           console.warn(
             'OpenRGB Accent Sync: Periodic check failed:',
-            error instanceof Error ? error.message : String(error)
+            error instanceof Error ? error.message : String(error),
           );
         }
         return GLib.SOURCE_CONTINUE;
@@ -336,7 +341,7 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
     } catch (error: unknown) {
       console.error(
         'OpenRGB Accent Sync: Failed to monitor accent color:',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
       this.syncAccentColor({ r: 255, g: 0, b: 0, a: 255 });
     }
@@ -386,7 +391,8 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
 
       console.log(`OpenRGB Accent Sync: Starting sync for RGB(${color.r}, ${color.g}, ${color.b})`);
 
-      const syncDelay = this.settings?.get_int('sync-delay') ?? ExtensionConstants.DEFAULT_SYNC_DELAY;
+      const syncDelay =
+        this.settings?.get_int('sync-delay') ?? ExtensionConstants.DEFAULT_SYNC_DELAY;
       if (syncDelay > 0) {
         console.log(`OpenRGB Accent Sync: Waiting ${syncDelay}ms before sync`);
         await new Promise<void>((resolve) =>
@@ -401,7 +407,7 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
       if (!this.openrgbClient) {
         throw new Error('OpenRGB client not available');
       }
-      
+
       const results = await this.openrgbClient.setAllDevicesColor(color);
 
       const successful = results.filter((r) => r.success).length;
@@ -416,10 +422,10 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
       }
     } catch (error: unknown) {
       const errorMsg = formatErrorMessage(error);
-      
+
       if (isOpenRGBError(error)) {
         console.error(`OpenRGB Accent Sync: Color sync failed - ${errorMsg}`);
-        
+
         // Handle specific error types
         if (error instanceof OpenRGBConnectionError) {
           console.error(`OpenRGB Accent Sync: Connection error at ${error.address}:${error.port}`);

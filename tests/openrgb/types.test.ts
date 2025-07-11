@@ -244,22 +244,24 @@ describe('OpenRGB Types Utility Functions', () => {
     });
 
     it('should return true for objects with additional properties and all required ones', () => {
-      expect(isValidRGBColor({ 
-        r: 255, 
-        g: 128, 
-        b: 64, 
-        a: 200, 
-        extra: 'property' 
-      })).toBe(true);
+      expect(
+        isValidRGBColor({
+          r: 255,
+          g: 128,
+          b: 64,
+          a: 200,
+          extra: 'property',
+        }),
+      ).toBe(true);
     });
 
     it('should handle edge cases with decimal numbers', () => {
       // Valid decimals within range
       expect(isValidRGBColor({ r: 255.0, g: 128.0, b: 64.0, a: 200.0 })).toBe(true);
-      
+
       // Valid decimals within range but non-integer
       expect(isValidRGBColor({ r: 254.9, g: 128.7, b: 64.3, a: 200.1 })).toBe(true);
-      
+
       // Invalid decimals (out of range)
       expect(isValidRGBColor({ r: 255.1, g: 128, b: 64, a: 200 })).toBe(false);
     });
@@ -274,7 +276,7 @@ describe('OpenRGB Types Utility Functions', () => {
     it('should work together - validate then check validity', () => {
       const input = { r: 300, g: -50, b: 128.7 }; // Invalid/out-of-range input
       const validated = validateRGBColor(input);
-      
+
       expect(isValidRGBColor(validated)).toBe(true);
       expect(validated).toEqual({
         r: 255,
@@ -286,7 +288,7 @@ describe('OpenRGB Types Utility Functions', () => {
 
     it('should work together - create then check validity', () => {
       const created = createRGBColor(255, 128, 64, 200);
-      
+
       expect(isValidRGBColor(created)).toBe(true);
       expect(created).toEqual({
         r: 255,
@@ -299,10 +301,10 @@ describe('OpenRGB Types Utility Functions', () => {
     it('should handle the complete workflow from invalid to valid', () => {
       // Start with completely invalid input
       const invalidInput = { r: 'red', g: null, b: undefined, a: NaN };
-      
+
       // Validate it (this will handle type coercion and defaults)
       const validated = validateRGBColor(invalidInput as any);
-      
+
       // Should now be valid
       expect(isValidRGBColor(validated)).toBe(true);
       expect(validated).toEqual({
