@@ -166,7 +166,6 @@ describe('OpenRGBClient', () => {
         .fn()
         .mockRejectedValue(new Error('Discovery failed'));
 
-      // Should throw OpenRGBError with descriptive message
       await expect(client.discoverDevices()).rejects.toThrow(
         'Device discovery failed: Discovery failed',
       );

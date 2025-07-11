@@ -275,7 +275,6 @@ export class NetworkClient {
   }
 
   async updateLeds(deviceId: number, color: RGBColor, ledCount: number): Promise<void> {
-    // Validate and normalize the color input
     const validatedColor = validateRGBColor(color);
 
     const totalSize = 6 + ledCount * 4;
@@ -312,7 +311,7 @@ export class NetworkClient {
     await new Promise<void>((resolve) =>
       this.addTimeout(() => {
         resolve();
-        return true; // GLib expects boolean
+        return true;
       }, 200),
     );
   }

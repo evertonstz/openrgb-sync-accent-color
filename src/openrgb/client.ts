@@ -137,7 +137,6 @@ export class OpenRGBClient {
       throw new OpenRGBConnectionError('Client is not connected to OpenRGB server');
     }
 
-    // Validate and normalize the color input
     const validatedColor = validateRGBColor(color);
 
     const selectedDeviceIds = this.settings

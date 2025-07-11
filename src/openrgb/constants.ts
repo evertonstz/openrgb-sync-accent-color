@@ -20,7 +20,7 @@ export const PROTOCOL = {
   /** Size of packet header in bytes */
   HEADER_SIZE: 16,
   /** Maximum packet size in bytes */
-  MAX_PACKET_SIZE: 1024 * 1024, // 1MB
+  MAX_PACKET_SIZE: 1024 * 1024,
   /** Default timeout for network operations in milliseconds */
   DEFAULT_TIMEOUT: 10000,
   /** Size of each color in bytes (RGBA) */
