@@ -1,6 +1,12 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { 
+  formatErrorMessage,
+  isOpenRGBError, 
+  OpenRGBConnectionError,
+  OpenRGBTimeoutError
+} from './src/openrgb/errors.js';
 import { OpenRGBClient } from './src/openrgb/index.js';
 import type { RGBColor } from './src/openrgb/types.js';
 import {
@@ -143,10 +149,14 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
 
       this.syncCurrentAccentColor();
     } catch (error: unknown) {
-      console.error(
-        'OpenRGB Accent Sync: Failed to initialize OpenRGB:',
-        error instanceof Error ? error.message : String(error)
-      );
+      const errorMsg = formatErrorMessage(error);
+      
+      if (isOpenRGBError(error)) {
+        console.error(`OpenRGB Accent Sync: ${errorMsg}`);
+      } else {
+        console.error('OpenRGB Accent Sync: Failed to initialize OpenRGB:', errorMsg);
+      }
+      
       this.startReconnectionTimer();
     }
   }
@@ -227,10 +237,8 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
         console.log('OpenRGB Accent Sync: No current accent color to sync');
       }
     } catch (error: unknown) {
-      console.error(
-        'OpenRGB Accent Sync: Failed to sync current accent color:',
-        error instanceof Error ? error.message : String(error)
-      );
+      const errorMsg = formatErrorMessage(error);
+      console.error('OpenRGB Accent Sync: Failed to sync current accent color:', errorMsg);
     }
   }
 
@@ -342,10 +350,8 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
       // Use the centralized accent color mapping from ExtensionConstants
       return ACCENT_COLOR_MAP[accentColor as AccentColorName] ?? ACCENT_COLOR_MAP.default;
     } catch (error: unknown) {
-      console.warn(
-        'OpenRGB Accent Sync: Failed to get accent color:',
-        error instanceof Error ? error.message : String(error)
-      );
+      const errorMsg = formatErrorMessage(error);
+      console.warn('OpenRGB Accent Sync: Failed to get accent color:', errorMsg);
       return null;
     }
   }
@@ -409,12 +415,22 @@ export default class OpenRGBAccentSyncExtension extends Extension implements IOp
         this.startReconnectionTimer();
       }
     } catch (error: unknown) {
-      console.error(
-        'OpenRGB Accent Sync: Failed to sync color:',
-        error instanceof Error ? error.message : String(error)
-      );
-      if (error instanceof Error && error.stack) {
-        console.error('OpenRGB Accent Sync: Error stack:', error.stack);
+      const errorMsg = formatErrorMessage(error);
+      
+      if (isOpenRGBError(error)) {
+        console.error(`OpenRGB Accent Sync: Color sync failed - ${errorMsg}`);
+        
+        // Handle specific error types
+        if (error instanceof OpenRGBConnectionError) {
+          console.error(`OpenRGB Accent Sync: Connection error at ${error.address}:${error.port}`);
+        } else if (error instanceof OpenRGBTimeoutError) {
+          console.error(`OpenRGB Accent Sync: Operation timed out after ${error.timeoutMs}ms`);
+        }
+      } else {
+        console.error('OpenRGB Accent Sync: Failed to sync color:', errorMsg);
+        if (error instanceof Error && error.stack) {
+          console.error('OpenRGB Accent Sync: Error stack:', error.stack);
+        }
       }
 
       this.startReconnectionTimer();
