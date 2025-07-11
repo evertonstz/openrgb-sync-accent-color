@@ -1,12 +1,37 @@
-// @ts-nocheck
+import type { DeviceData } from './device.js';
 import { NetworkClient } from './network.js';
+import type { RGBColor } from './types.js';
+
+interface Device {
+  id: number;
+  name: string;
+  ledCount: number;
+  directModeIndex: number;
+  data: DeviceData | null;
+}
+
+interface SyncResult {
+  deviceId: number;
+  success: boolean;
+  error?: string;
+}
+
+interface Settings {
+  get_strv(key: string): string[];
+  get_boolean(key: string): boolean;
+}
 
 export class OpenRGBClient {
+  private networkClient: NetworkClient;
+  private settings: Settings | null;
+  private devices: Device[];
+  public connected: boolean;
+
   constructor(
-    address = '127.0.0.1',
-    port = 6742,
-    name = 'GNOME-OpenRGB-AccentSync',
-    settings = null,
+    address: string = '127.0.0.1',
+    port: number = 6742,
+    name: string = 'GNOME-OpenRGB-AccentSync',
+    settings: Settings | null = null,
   ) {
     this.networkClient = new NetworkClient(address, port, name);
     this.settings = settings;
@@ -14,17 +39,17 @@ export class OpenRGBClient {
     this.connected = false;
   }
 
-  async connect() {
+  async connect(): Promise<void> {
     await this.networkClient.connect();
     this.connected = true;
   }
 
-  disconnect() {
+  disconnect(): void {
     this.networkClient.disconnect();
     this.connected = false;
   }
 
-  async discoverDevices() {
+  async discoverDevices(): Promise<Device[]> {
     if (!this.connected) {
       throw new Error('Not connected');
     }
@@ -50,7 +75,7 @@ export class OpenRGBClient {
             }
           }
 
-          const device = {
+          const device: Device = {
             id: i,
             name: deviceData.name,
             ledCount: deviceData.leds.length,
@@ -67,7 +92,7 @@ export class OpenRGBClient {
             } catch (modeError) {
               console.warn(
                 `OpenRGB: Failed to set device ${i} to direct mode during discovery:`,
-                modeError.message,
+                (modeError as Error).message,
               );
             }
           }
@@ -77,7 +102,7 @@ export class OpenRGBClient {
             `OpenRGB: Device ${i}: ${device.name} (${device.ledCount} LEDs, direct mode: ${device.directModeIndex})`,
           );
         } catch (error) {
-          console.warn(`OpenRGB: Failed to get device ${i}:`, error.message);
+          console.warn(`OpenRGB: Failed to get device ${i}:`, (error as Error).message);
 
           this.devices.push({
             id: i,
@@ -94,7 +119,7 @@ export class OpenRGBClient {
         this.devices = [];
       }
     } catch (error) {
-      console.error('OpenRGB: Device discovery failed:', error.message);
+      console.error('OpenRGB: Device discovery failed:', (error as Error).message);
       this.devices = [];
     }
 
@@ -102,8 +127,8 @@ export class OpenRGBClient {
     return this.devices;
   }
 
-  async setAllDevicesColor(color) {
-    const results = [];
+  async setAllDevicesColor(color: RGBColor): Promise<SyncResult[]> {
+    const results: SyncResult[] = [];
 
     if (!this.connected) {
       console.warn('OpenRGB: Not connected');
@@ -140,21 +165,20 @@ export class OpenRGBClient {
             await this.networkClient.setDeviceMode(device.id, device.directModeIndex);
             console.log(
               `OpenRGB: Device ${device.id} - Set to direct mode ${device.directModeIndex} before update`,
-            );
-          } catch (modeError) {
-            console.warn(
-              `OpenRGB: Failed to set device ${device.id} to direct mode before update:`,
-              modeError.message,
-            );
-          }
+            );            } catch (modeError) {
+              console.warn(
+                `OpenRGB: Failed to set device ${device.id} to direct mode before update:`,
+                (modeError as Error).message,
+              );
+            }
         }
 
         await this.networkClient.updateLeds(device.id, color, device.ledCount);
         console.log(`OpenRGB: Device ${device.id} - Color update sent successfully`);
         results.push({ deviceId: device.id, success: true });
       } catch (error) {
-        console.error(`OpenRGB: Failed to update device ${device.id}:`, error.message);
-        results.push({ deviceId: device.id, success: false, error: error.message });
+        console.error(`OpenRGB: Failed to update device ${device.id}:`, (error as Error).message);
+        results.push({ deviceId: device.id, success: false, error: (error as Error).message });
       }
     }
 
