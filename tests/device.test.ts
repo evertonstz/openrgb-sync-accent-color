@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { DeviceData } from '../src/openrgb/device.js';
 
 describe('DeviceData', () => {

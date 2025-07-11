@@ -1,16 +1,15 @@
 import Adw from 'gi://Adw';
-import Gtk from 'gi://Gtk';
-import GObject from 'gi://GObject';
-import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Gtk from 'gi://Gtk';
 
 import {
-  ExtensionPreferences,
   gettext as _,
+  ExtensionPreferences,
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
-  fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
+  override fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
     const settings = this.getSettings();
 
     const page = new Adw.PreferencesPage({

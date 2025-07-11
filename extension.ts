@@ -1,7 +1,8 @@
 // @ts-nocheck
-import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { OpenRGBClient } from './src/openrgb/index.js';
 
 export default class OpenRGBAccentSyncExtension extends Extension {
@@ -319,7 +320,7 @@ export default class OpenRGBAccentSyncExtension extends Extension {
         default: { r: 255, g: 255, b: 255 },
       };
 
-      return colorMap[accentColor] || colorMap['default'];
+      return colorMap[accentColor] || colorMap.default;
     } catch (error) {
       console.warn('OpenRGB Accent Sync: Failed to get accent color:', error.message);
       return null;

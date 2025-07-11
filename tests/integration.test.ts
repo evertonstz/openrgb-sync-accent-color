@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 describe('OpenRGB Module Integration', () => {
   describe('Constants module', () => {
     it('should export PacketType', async () => {
-      const { PacketType } = await import('../src/openrgb/constants.js');
+      const { PacketType } = await import('../src/openrgb/enums.js');
       expect(PacketType).toBeDefined();
       expect(typeof PacketType).toBe('object');
     });
@@ -95,10 +95,11 @@ describe('OpenRGB Module Integration', () => {
 
   describe('Type consistency', () => {
     it('should have consistent packet type usage', async () => {
-      const { PacketType } = await import('../src/openrgb/constants.js');
+      const { PacketType } = await import('../src/openrgb/enums.js');
 
       // Verify packet types are used consistently across modules
-      const packetTypes = Object.values(PacketType);
+      // Filter out string keys from TypeScript enum (only keep numeric values)
+      const packetTypes = Object.values(PacketType).filter((value) => typeof value === 'number');
       packetTypes.forEach((type) => {
         expect(typeof type).toBe('number');
         expect(Number.isInteger(type)).toBe(true);

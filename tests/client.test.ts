@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpenRGBClient } from '../src/openrgb/client.js';
 
 // Mock the NetworkClient since it depends on GJS/GTK
@@ -62,7 +62,7 @@ describe('OpenRGBClient', () => {
     });
 
     it('should accept settings parameter', () => {
-      const settings = { timeout: 5000 };
+      const _settings = { timeout: 5000 };
       // Note: settings parameter might not be supported in current implementation
       const clientWithSettings = new OpenRGBClient(mockAddress, mockPort, mockName) as any;
       expect(clientWithSettings).toBeDefined();
@@ -129,7 +129,9 @@ describe('OpenRGBClient', () => {
 
     it('should throw error when not connected', async () => {
       client.disconnect();
-      await expect(client.discoverDevices()).rejects.toThrow('Not connected');
+      await expect(client.discoverDevices()).rejects.toThrow(
+        'Client is not connected to OpenRGB server',
+      );
     });
 
     it('should find direct mode for devices', async () => {
@@ -164,10 +166,9 @@ describe('OpenRGBClient', () => {
         .fn()
         .mockRejectedValue(new Error('Discovery failed'));
 
-      // Should not throw, but should return empty array
-      const devices = await client.discoverDevices();
-      expect(devices).toEqual([]);
-      expect(client.devices).toEqual([]);
+      await expect(client.discoverDevices()).rejects.toThrow(
+        'Device discovery failed: Discovery failed',
+      );
     });
 
     it('should handle individual device errors gracefully', async () => {
@@ -258,7 +259,7 @@ describe('OpenRGBClient', () => {
 
       try {
         await client.connect();
-      } catch (error) {
+      } catch (_error) {
         expect(client.connected).toBe(false);
       }
     });
