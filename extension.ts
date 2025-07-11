@@ -1,43 +1,71 @@
-// @ts-nocheck
-
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import {
+  formatErrorMessage,
+  isOpenRGBError,
+  OpenRGBConnectionError,
+  OpenRGBTimeoutError,
+} from './src/openrgb/errors.js';
 import { OpenRGBClient } from './src/openrgb/index.js';
+import type { RGBColor } from './src/openrgb/types.js';
+import {
+  ACCENT_COLOR_MAP,
+  type AccentColorName,
+  ExtensionConstants,
+  type IOpenRGBAccentSyncExtension,
+  type SignalId,
+  type TimeoutCallback,
+  type TimerId,
+} from './src/types/extension.js';
 
-export default class OpenRGBAccentSyncExtension extends Extension {
-  constructor(metadata) {
-    super(metadata);
-    this.openrgbClient = null;
-    this.accentColorSignal = null;
-    this.accentColorSignal2 = null;
-    this.settings = null;
-    this.periodicCheckTimer = null;
-    this.lastKnownColor = null;
-    this.reconnectionTimer = null;
-    this.reconnectionAttempts = 0;
-    this.maxReconnectionAttempts = 10;
-    this.reconnectionDelay = 5000;
-    this.syncInProgress = false;
-    this.syncTimeouts = new Set();
-  }
+export default class OpenRGBAccentSyncExtension
+  extends Extension
+  implements IOpenRGBAccentSyncExtension
+{
+  // Core properties
+  public openrgbClient: OpenRGBClient | null = null;
+  public settings: Gio.Settings | null = null;
+  public lastKnownColor: RGBColor | null = null;
 
-  enable() {
+  // Signal management
+  public accentColorSignal: SignalId | null = null;
+  public accentColorSignal2: SignalId | null = null;
+
+  // Timer management
+  public periodicCheckTimer: TimerId | null = null;
+  public reconnectionTimer: TimerId | null = null;
+  public syncTimeouts: Set<TimerId> = new Set();
+
+  // Reconnection state
+  public reconnectionAttempts: number = 0;
+  public readonly maxReconnectionAttempts: number =
+    ExtensionConstants.DEFAULT_MAX_RECONNECTION_ATTEMPTS;
+  public readonly reconnectionDelay: number = ExtensionConstants.DEFAULT_RECONNECTION_DELAY;
+
+  // Sync state
+  public syncInProgress: boolean = false;
+
+  public override enable(): void {
     console.log('OpenRGB Accent Sync: Extension enabled');
 
     this.settings = this.getSettings();
 
-    const host = this.settings.get_string('openrgb-host') || '127.0.0.1';
-    const port = this.settings.get_int('openrgb-port') || 6742;
+    const host = this.settings.get_string('openrgb-host') || ExtensionConstants.DEFAULT_HOST;
+    const port = this.settings.get_int('openrgb-port') || ExtensionConstants.DEFAULT_PORT;
 
-    this.openrgbClient = new OpenRGBClient(host, port, 'GNOME-OpenRGB-AccentSync', this.settings);
+    this.openrgbClient = new OpenRGBClient(
+      host,
+      port,
+      ExtensionConstants.DEFAULT_CLIENT_NAME,
+      this.settings,
+    );
 
     this.initializeOpenRGB();
-
     this.monitorAccentColor();
   }
 
-  disable() {
+  public override disable(): void {
     console.log('OpenRGB Accent Sync: Extension disabled');
 
     this.clearAllTimeouts();
@@ -67,10 +95,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
         }
 
         console.log('OpenRGB Accent Sync: Signals disconnected successfully');
-      } catch (error) {
+      } catch (error: unknown) {
         console.warn(
           'OpenRGB Accent Sync: Failed to disconnect accent color signals:',
-          error.message,
+          error instanceof Error ? error.message : String(error),
         );
       }
     }
@@ -92,7 +120,7 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     this.reconnectionAttempts = 0;
   }
 
-  addTimeout(callback, delay) {
+  public addTimeout(callback: TimeoutCallback, delay: number): TimerId {
     const timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
       this.syncTimeouts.delete(timeoutId);
       return callback();
@@ -101,15 +129,19 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     return timeoutId;
   }
 
-  clearAllTimeouts() {
+  public clearAllTimeouts(): void {
     for (const timeoutId of this.syncTimeouts) {
       GLib.source_remove(timeoutId);
     }
     this.syncTimeouts.clear();
   }
 
-  async initializeOpenRGB() {
+  public async initializeOpenRGB(): Promise<void> {
     try {
+      if (!this.openrgbClient) {
+        throw new Error('OpenRGB client not initialized');
+      }
+
       await this.openrgbClient.connect();
       await this.openrgbClient.discoverDevices();
       console.log('OpenRGB Accent Sync: OpenRGB initialized successfully');
@@ -121,13 +153,20 @@ export default class OpenRGBAccentSyncExtension extends Extension {
       }
 
       this.syncCurrentAccentColor();
-    } catch (error) {
-      console.error('OpenRGB Accent Sync: Failed to initialize OpenRGB:', error.message);
+    } catch (error: unknown) {
+      const errorMsg = formatErrorMessage(error);
+
+      if (isOpenRGBError(error)) {
+        console.error(`OpenRGB Accent Sync: ${errorMsg}`);
+      } else {
+        console.error('OpenRGB Accent Sync: Failed to initialize OpenRGB:', errorMsg);
+      }
+
       this.startReconnectionTimer();
     }
   }
 
-  startReconnectionTimer() {
+  public startReconnectionTimer(): void {
     if (this.reconnectionTimer) {
       return;
     }
@@ -151,7 +190,7 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     });
   }
 
-  async ensureOpenRGBConnection() {
+  public async ensureOpenRGBConnection(): Promise<boolean> {
     if (!this.openrgbClient || !this.openrgbClient.connected) {
       console.log('OpenRGB Accent Sync: OpenRGB not connected, attempting to reconnect...');
 
@@ -161,12 +200,12 @@ export default class OpenRGBAccentSyncExtension extends Extension {
       }
 
       await this.initializeOpenRGB();
-      return this.openrgbClient?.connected;
+      return this.openrgbClient?.connected ?? false;
     }
     return true;
   }
 
-  async forceReconnection() {
+  public async forceReconnection(): Promise<void> {
     console.log('OpenRGB Accent Sync: Force reconnection requested');
 
     if (this.reconnectionTimer) {
@@ -183,10 +222,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     await this.initializeOpenRGB();
   }
 
-  syncCurrentAccentColor() {
+  public syncCurrentAccentColor(): void {
     try {
       const desktopSettings = new Gio.Settings({
-        schema_id: 'org.gnome.desktop.interface',
+        schema_id: ExtensionConstants.DESKTOP_INTERFACE_SCHEMA,
       });
 
       const currentColor = this.getAccentColor(desktopSettings);
@@ -198,16 +237,17 @@ export default class OpenRGBAccentSyncExtension extends Extension {
         this.addTimeout(() => {
           this.syncAccentColor(currentColor);
           return GLib.SOURCE_REMOVE;
-        }, 1000);
+        }, ExtensionConstants.INITIAL_SYNC_DELAY);
       } else {
         console.log('OpenRGB Accent Sync: No current accent color to sync');
       }
-    } catch (error) {
-      console.error('OpenRGB Accent Sync: Failed to sync current accent color:', error.message);
+    } catch (error: unknown) {
+      const errorMsg = formatErrorMessage(error);
+      console.error('OpenRGB Accent Sync: Failed to sync current accent color:', errorMsg);
     }
   }
 
-  monitorAccentColor() {
+  public monitorAccentColor(): void {
     console.log('OpenRGB Accent Sync: Accent color monitoring started');
 
     try {
@@ -288,46 +328,40 @@ export default class OpenRGBAccentSyncExtension extends Extension {
               this.syncAccentColor(currentColor);
             }
           }
-        } catch (error) {
-          console.warn('OpenRGB Accent Sync: Periodic check failed:', error.message);
+        } catch (error: unknown) {
+          console.warn(
+            'OpenRGB Accent Sync: Periodic check failed:',
+            error instanceof Error ? error.message : String(error),
+          );
         }
         return GLib.SOURCE_CONTINUE;
       });
 
       console.log('OpenRGB Accent Sync: Periodic check timer started');
-    } catch (error) {
-      console.error('OpenRGB Accent Sync: Failed to monitor accent color:', error.message);
-      this.syncAccentColor({ r: 255, g: 0, b: 0 });
+    } catch (error: unknown) {
+      console.error(
+        'OpenRGB Accent Sync: Failed to monitor accent color:',
+        error instanceof Error ? error.message : String(error),
+      );
+      this.syncAccentColor({ r: 255, g: 0, b: 0, a: 255 });
     }
   }
 
-  getAccentColor(settings) {
+  public getAccentColor(settings: Gio.Settings): RGBColor | null {
     try {
-      const accentColor = settings.get_string('accent-color');
+      const accentColor = settings.get_string(ExtensionConstants.ACCENT_COLOR_KEY);
 
       // GNOME accent colors are predefined values like 'blue', 'teal', 'green', etc.
-      // We need to map these to RGB values
-      const colorMap = {
-        blue: { r: 53, g: 132, b: 228 },
-        teal: { r: 33, g: 144, b: 164 },
-        green: { r: 21, g: 160, b: 44 },
-        yellow: { r: 215, g: 145, b: 4 },
-        orange: { r: 237, g: 71, b: 0 },
-        red: { r: 243, g: 5, b: 17 },
-        pink: { r: 250, g: 42, b: 153 },
-        purple: { r: 167, g: 12, b: 250 },
-        slate: { r: 148, g: 201, b: 250 },
-        default: { r: 255, g: 255, b: 255 },
-      };
-
-      return colorMap[accentColor] || colorMap.default;
-    } catch (error) {
-      console.warn('OpenRGB Accent Sync: Failed to get accent color:', error.message);
+      // Use the centralized accent color mapping from ExtensionConstants
+      return ACCENT_COLOR_MAP[accentColor as AccentColorName] ?? ACCENT_COLOR_MAP.default;
+    } catch (error: unknown) {
+      const errorMsg = formatErrorMessage(error);
+      console.warn('OpenRGB Accent Sync: Failed to get accent color:', errorMsg);
       return null;
     }
   }
 
-  async syncAccentColor(color) {
+  public async syncAccentColor(color: RGBColor): Promise<void> {
     console.log(
       `OpenRGB Accent Sync: syncAccentColor called with RGB(${color.r}, ${color.g}, ${color.b})`,
     );
@@ -342,7 +376,7 @@ export default class OpenRGBAccentSyncExtension extends Extension {
     try {
       this.lastKnownColor = color;
 
-      if (!this.settings.get_boolean('sync-enabled')) {
+      if (!this.settings?.get_boolean('sync-enabled')) {
         console.log('OpenRGB Accent Sync: Sync is disabled, skipping color update');
         return;
       }
@@ -357,10 +391,11 @@ export default class OpenRGBAccentSyncExtension extends Extension {
 
       console.log(`OpenRGB Accent Sync: Starting sync for RGB(${color.r}, ${color.g}, ${color.b})`);
 
-      const syncDelay = this.settings.get_int('sync-delay');
+      const syncDelay =
+        this.settings?.get_int('sync-delay') ?? ExtensionConstants.DEFAULT_SYNC_DELAY;
       if (syncDelay > 0) {
         console.log(`OpenRGB Accent Sync: Waiting ${syncDelay}ms before sync`);
-        await new Promise((resolve) =>
+        await new Promise<void>((resolve) =>
           this.addTimeout(() => {
             resolve();
             return GLib.SOURCE_REMOVE;
@@ -369,6 +404,10 @@ export default class OpenRGBAccentSyncExtension extends Extension {
       }
 
       console.log(`OpenRGB Accent Sync: Calling setAllDevicesColor...`);
+      if (!this.openrgbClient) {
+        throw new Error('OpenRGB client not available');
+      }
+
       const results = await this.openrgbClient.setAllDevicesColor(color);
 
       const successful = results.filter((r) => r.success).length;
@@ -381,9 +420,24 @@ export default class OpenRGBAccentSyncExtension extends Extension {
         console.error('OpenRGB Accent Sync: All devices failed to sync, starting reconnection...');
         this.startReconnectionTimer();
       }
-    } catch (error) {
-      console.error('OpenRGB Accent Sync: Failed to sync color:', error.message);
-      console.error('OpenRGB Accent Sync: Error stack:', error.stack);
+    } catch (error: unknown) {
+      const errorMsg = formatErrorMessage(error);
+
+      if (isOpenRGBError(error)) {
+        console.error(`OpenRGB Accent Sync: Color sync failed - ${errorMsg}`);
+
+        // Handle specific error types
+        if (error instanceof OpenRGBConnectionError) {
+          console.error(`OpenRGB Accent Sync: Connection error at ${error.address}:${error.port}`);
+        } else if (error instanceof OpenRGBTimeoutError) {
+          console.error(`OpenRGB Accent Sync: Operation timed out after ${error.timeoutMs}ms`);
+        }
+      } else {
+        console.error('OpenRGB Accent Sync: Failed to sync color:', errorMsg);
+        if (error instanceof Error && error.stack) {
+          console.error('OpenRGB Accent Sync: Error stack:', error.stack);
+        }
+      }
 
       this.startReconnectionTimer();
     } finally {
