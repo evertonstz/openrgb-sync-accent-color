@@ -85,12 +85,11 @@ jobs:
         echo "✅ Package verified: $(ls -lh openrgb-sync-accent-color.zip)"
       
     - name: Upload to GNOME Extensions
-      uses: andyholmes/gnome-shell-extension-uploader@main
+      uses: fire-man-x/gnome-shell-extension-uploader@v1
       with:
-        uuid: 'openrgb-sync-accent-color@evertonstz.github.io'
-        file: 'openrgb-sync-accent-color.zip'
-        username: ${{ secrets.GNOME_EXTENSIONS_USERNAME }}
-        password: ${{ secrets.GNOME_EXTENSIONS_PASSWORD }}
+        gnome_username: ${{ secrets.GNOME_EXTENSIONS_USERNAME }}
+        gnome_password: ${{ secrets.GNOME_EXTENSIONS_PASSWORD }}
+        extension_zip_file: 'openrgb-sync-accent-color.zip'
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
