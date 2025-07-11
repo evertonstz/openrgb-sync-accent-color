@@ -1,11 +1,20 @@
-// @ts-nocheck
+interface RGBColor {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
 export class BinaryParser {
-  constructor(data, offset = 0) {
+  private data: ArrayBuffer;
+  private offset: number;
+  
+  constructor(data: ArrayBuffer, offset: number = 0) {
     this.data = data;
     this.offset = offset;
   }
 
-  readUint32() {
+  readUint32(): number {
     if (this.offset + 4 > this.data.byteLength) {
       throw new Error(
         `Cannot read Uint32 at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
@@ -17,7 +26,7 @@ export class BinaryParser {
     return value;
   }
 
-  readUint16() {
+  readUint16(): number {
     if (this.offset + 2 > this.data.byteLength) {
       throw new Error(
         `Cannot read Uint16 at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
@@ -29,7 +38,7 @@ export class BinaryParser {
     return value;
   }
 
-  readString() {
+  readString(): string {
     const length = this.readUint16();
     if (length === 0) return '';
 
@@ -44,7 +53,7 @@ export class BinaryParser {
     return new TextDecoder().decode(bytes);
   }
 
-  readRGBColor() {
+  readRGBColor(): RGBColor {
     if (this.offset + 4 > this.data.byteLength) {
       throw new Error(
         `Cannot read RGBColor at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
@@ -60,7 +69,7 @@ export class BinaryParser {
     return { r, g, b, a };
   }
 
-  skip(bytes) {
+  skip(bytes: number): void {
     if (this.offset + bytes > this.data.byteLength) {
       throw new Error(
         `Cannot skip ${bytes} bytes at offset ${this.offset}, buffer size: ${this.data.byteLength}`,
@@ -69,7 +78,7 @@ export class BinaryParser {
     this.offset += bytes;
   }
 
-  hasMoreData() {
+  hasMoreData(): boolean {
     return this.offset < this.data.byteLength;
   }
 }
