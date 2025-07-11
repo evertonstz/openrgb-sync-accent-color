@@ -1,12 +1,18 @@
 # <img src="https://github.com/user-attachments/assets/bcf7adce-6425-4713-a955-56332b51caef" width="32" height="32" align="top"> OpenRGB Accent Color Sync
 
-A GNOME Shell extension that automatically synchronizes your GNOME accent colors with OpenRGB devices.
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-45%2B-4A90E2?logo=gnome&logoColor=white)](https://www.gnome.org/)
+[![OpenRGB](https://img.shields.io/badge/OpenRGB-Compatible-orange?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMSA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDMgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K)](https://openrgb.org/)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/evertonstz/openrgb-sync-accent-color/ci.yml?branch=main&logo=github&label=CI)](https://github.com/evertonstz/openrgb-sync-accent-color/actions)
+[![GitHub Release](https://img.shields.io/github/v/release/evertonstz/openrgb-sync-accent-color?logo=github)](https://github.com/evertonstz/openrgb-sync-accent-color/releases)
+[![GitHub Downloads](https://img.shields.io/github/downloads/evertonstz/openrgb-sync-accent-color/total?logo=github)](https://github.com/evertonstz/openrgb-sync-accent-color/releases)
 
 <p align="center">
   <a href="https://extensions.gnome.org/extension/8331/openrgb-accent-color-sync/">
     <img src="https://raw.githubusercontent.com/andyholmes/gnome-shell-extensions-badge/master/get-it-on-ego.svg?sanitize=true" alt="Get it on GNOME Extensions" height="100" align="middle">
   </a>
-</p>
+</p>A GNOME Shell extension that automatically synchronizes your GNOME accent colors with OpenRGB devices.
 
 ## Features
 
@@ -14,7 +20,6 @@ A GNOME Shell extension that automatically synchronizes your GNOME accent colors
 - 🔄 Real-time color synchronization when accent color changes
 - ⚙️ Configurable sync settings and delays
 - 🔌 Automatic reconnection handling for OpenRGB
-- 🛠️ Built with TypeScript for better maintainability
 
 ## Documentation
 
