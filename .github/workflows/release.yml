@@ -76,6 +76,14 @@ jobs:
     - name: Package extension
       run: make pack
       
+    - name: Upload to GNOME Extensions
+      uses: andyholmes/gnome-shell-extension-uploader@main
+      with:
+        uuid: 'openrgb-sync-accent-color@evertonstz.github.io'
+        file: 'openrgb-sync-accent-color.zip'
+        username: ${{ secrets.GNOME_EXTENSIONS_USERNAME }}
+        password: ${{ secrets.GNOME_EXTENSIONS_PASSWORD }}
+      
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
