@@ -9,7 +9,11 @@ import {
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import { OpenRGBClient } from './src/openrgb/index.js';
-import { ACCENT_COLOR_MAP, type AccentColorName, ExtensionConstants } from './src/types/extension.js';
+import {
+  ACCENT_COLOR_MAP,
+  type AccentColorName,
+  ExtensionConstants,
+} from './src/types/extension.js';
 
 export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   override fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
@@ -266,7 +270,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     ignoredDevicesRows: Adw.ActionRow[],
   ): Promise<void> {
     button.sensitive = false;
-    
+
     const statusRow = new Adw.ActionRow({
       title: _('Discovering devices...'),
       subtitle: _('Please wait while scanning for OpenRGB devices'),
@@ -542,11 +546,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
             const ignoredDevice = JSON.parse(deviceJson);
             return ignoredDevice.id !== device.id;
           } catch (error) {
-            console.warn(
-              'Failed to parse ignored device JSON during removal:',
-              deviceJson,
-              error,
-            );
+            console.warn('Failed to parse ignored device JSON during removal:', deviceJson, error);
             return false; // Remove invalid entries
           }
         });
@@ -634,7 +634,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
   private async _triggerColorUpdate(settings: Gio.Settings, device: any): Promise<void> {
     if (!settings.get_boolean('sync-enabled')) {
-      console.log('OpenRGB Accent Sync: Sync is disabled, skipping color update for re-enabled device');
+      console.log(
+        'OpenRGB Accent Sync: Sync is disabled, skipping color update for re-enabled device',
+      );
       return;
     }
 
@@ -642,33 +644,45 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       const desktopSettings = new Gio.Settings({
         schema_id: ExtensionConstants.DESKTOP_INTERFACE_SCHEMA,
       });
-      
-      const accentColorName = desktopSettings.get_string(ExtensionConstants.ACCENT_COLOR_KEY);
-      const currentColor = ACCENT_COLOR_MAP[accentColorName as AccentColorName] ?? ACCENT_COLOR_MAP.default;
 
-      console.log(`OpenRGB Accent Sync: Triggering color update for re-enabled device ${device.name} (ID: ${device.id})`);
-      console.log(`OpenRGB Accent Sync: Current accent color: RGB(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`);
+      const accentColorName = desktopSettings.get_string(ExtensionConstants.ACCENT_COLOR_KEY);
+      const currentColor =
+        ACCENT_COLOR_MAP[accentColorName as AccentColorName] ?? ACCENT_COLOR_MAP.default;
+
+      console.log(
+        `OpenRGB Accent Sync: Triggering color update for re-enabled device ${device.name} (ID: ${device.id})`,
+      );
+      console.log(
+        `OpenRGB Accent Sync: Current accent color: RGB(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`,
+      );
 
       const host = settings.get_string('openrgb-host');
       const port = settings.get_int('openrgb-port');
       const client = new OpenRGBClient(host, port, 'GNOME-Preferences-ColorUpdate');
 
       await client.connect();
-      
+
       const setDirectModeOnUpdate = settings.get_boolean('set-direct-mode-on-update');
-      
+
       const results = await client.setDevicesColor([device], currentColor, setDirectModeOnUpdate);
-      
+
       client.disconnect();
 
       const successful = results.filter((r) => r.success).length;
       if (successful > 0) {
-        console.log(`OpenRGB Accent Sync: Successfully updated color for re-enabled device ${device.name}`);
+        console.log(
+          `OpenRGB Accent Sync: Successfully updated color for re-enabled device ${device.name}`,
+        );
       } else {
-        console.warn(`OpenRGB Accent Sync: Failed to update color for re-enabled device ${device.name}`);
+        console.warn(
+          `OpenRGB Accent Sync: Failed to update color for re-enabled device ${device.name}`,
+        );
       }
     } catch (error) {
-      console.error('OpenRGB Accent Sync: Failed to trigger color update for re-enabled device:', error);
+      console.error(
+        'OpenRGB Accent Sync: Failed to trigger color update for re-enabled device:',
+        error,
+      );
     }
   }
 }
