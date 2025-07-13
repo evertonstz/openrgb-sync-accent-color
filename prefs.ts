@@ -8,15 +8,36 @@ import {
   ExtensionPreferences,
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+import { OpenRGBClient } from './src/openrgb/index.js';
+
 export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   override fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
     const settings = this.getSettings();
 
-    const page = new Adw.PreferencesPage({
-      title: _('OpenRGB Accent Sync'),
+    // Connection & Sync Page
+    const mainPage = new Adw.PreferencesPage({
+      title: _('Connection & Sync'),
       icon_name: 'applications-graphics-symbolic',
     });
 
+    // Devices Page
+    const devicesPage = new Adw.PreferencesPage({
+      title: _('Devices'),
+      icon_name: 'computer-symbolic',
+    });
+
+    this._createConnectionGroup(mainPage, settings);
+    this._createSyncGroup(mainPage, settings);
+    this._createAboutGroup(mainPage);
+    this._createDevicesGroup(devicesPage, settings);
+
+    window.add(mainPage);
+    window.add(devicesPage);
+
+    return Promise.resolve();
+  }
+
+  private _createConnectionGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
     const connectionGroup = new Adw.PreferencesGroup({
       title: _('OpenRGB Connection'),
       description: _('Configure connection to OpenRGB server using the SDK protocol.'),
@@ -68,7 +89,10 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     connectionGroup.add(hostRow);
     connectionGroup.add(portRow);
     connectionGroup.add(testRow);
+    page.add(connectionGroup);
+  }
 
+  private _createSyncGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
     const syncGroup = new Adw.PreferencesGroup({
       title: _('Synchronization'),
       description: _(
@@ -111,7 +135,10 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     syncGroup.add(enabledRow);
     syncGroup.add(delayRow);
     syncGroup.add(directModeRow);
+    page.add(syncGroup);
+  }
 
+  private _createAboutGroup(page: Adw.PreferencesPage): void {
     const aboutGroup = new Adw.PreferencesGroup({
       title: _('About'),
     });
@@ -129,13 +156,176 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     aboutRow.add_suffix(linkButton);
 
     aboutGroup.add(aboutRow);
-
-    page.add(connectionGroup);
-    page.add(syncGroup);
     page.add(aboutGroup);
-    window.add(page);
+  }
 
-    return Promise.resolve();
+  private _createDevicesGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
+    const devicesGroup = new Adw.PreferencesGroup({
+      title: _('Device Management'),
+      description: _('Select which OpenRGB devices should be synchronized with accent colors.'),
+    });
+
+    // Connection status for device discovery
+    const discoveryStatusLabel = new Gtk.Label({
+      label: _('Click "Discover Devices" to find available OpenRGB devices'),
+      css_classes: ['dim-label'],
+      wrap: true,
+    });
+
+    const discoveryRow = new Adw.ActionRow({
+      title: _('Device Discovery'),
+      subtitle: _('Scan for available OpenRGB devices'),
+    });
+
+    const discoverButton = new Gtk.Button({
+      label: _('Discover Devices'),
+      css_classes: ['suggested-action'],
+      valign: Gtk.Align.CENTER,
+    });
+
+    const resetButton = new Gtk.Button({
+      label: _('Reset All'),
+      css_classes: ['destructive-action'],
+      valign: Gtk.Align.CENTER,
+      sensitive: false,
+    });
+
+    discoveryRow.add_suffix(resetButton);
+    discoveryRow.add_suffix(discoverButton);
+
+    // Device list container
+    const deviceListGroup = new Adw.PreferencesGroup({
+      title: _('Available Devices'),
+    });
+
+    const deviceRows: Adw.SwitchRow[] = [];
+
+    // Reset button functionality
+    resetButton.connect('clicked', () => {
+      // Clear ignored devices (enable all)
+      settings.set_strv('ignored-devices', []);
+
+      // Update UI
+      deviceRows.forEach((row) => {
+        row.active = true;
+      });
+
+      resetButton.sensitive = false;
+    });
+
+    // Discover button functionality
+    discoverButton.connect('clicked', async () => {
+      await this._discoverDevices(
+        settings,
+        discoverButton,
+        discoveryStatusLabel,
+        deviceListGroup,
+        resetButton,
+        deviceRows,
+      );
+    });
+
+    devicesGroup.add(discoveryRow);
+    devicesGroup.add(discoveryStatusLabel);
+    page.add(devicesGroup);
+    page.add(deviceListGroup);
+  }
+
+  private async _discoverDevices(
+    settings: Gio.Settings,
+    button: Gtk.Button,
+    statusLabel: Gtk.Label,
+    deviceListGroup: Adw.PreferencesGroup,
+    resetButton: Gtk.Button,
+    deviceRows: Adw.SwitchRow[],
+  ): Promise<void> {
+    button.sensitive = false;
+    statusLabel.label = _('Discovering devices...');
+    statusLabel.css_classes = ['dim-label'];
+
+    // Clear existing device rows
+    deviceRows.forEach((row) => deviceListGroup.remove(row));
+    deviceRows.length = 0;
+
+    try {
+      const host = settings.get_string('openrgb-host');
+      const port = settings.get_int('openrgb-port');
+      const client = new OpenRGBClient(host, port, 'GNOME-Preferences');
+
+      await client.connect();
+      const devices = await client.discoverDevices();
+      client.disconnect();
+
+      if (devices.length === 0) {
+        statusLabel.label = _('No devices found');
+        statusLabel.css_classes = ['warning'];
+        return;
+      }
+
+      // Get currently ignored devices
+      const ignoredDevices = settings.get_strv('ignored-devices').map((id) => parseInt(id));
+
+      // Create device rows
+      devices.forEach((device) => {
+        const isEnabled = !ignoredDevices.includes(device.id);
+
+        const deviceRow = new Adw.SwitchRow({
+          title: device.name,
+          subtitle: _(`Device ID: ${device.id} • LEDs: ${device.ledCount}`),
+          active: isEnabled,
+        });
+
+        deviceRow.connect('notify::active', () => {
+          const currentIgnored = settings.get_strv('ignored-devices').map((id) => parseInt(id));
+
+          if (deviceRow.active) {
+            // Enable device (remove from ignored list)
+            const newIgnored = currentIgnored.filter((id) => id !== device.id);
+            settings.set_strv(
+              'ignored-devices',
+              newIgnored.map((id) => id.toString()),
+            );
+          } else {
+            // Disable device (add to ignored list)
+            if (!currentIgnored.includes(device.id)) {
+              currentIgnored.push(device.id);
+              settings.set_strv(
+                'ignored-devices',
+                currentIgnored.map((id) => id.toString()),
+              );
+            }
+          }
+
+          // Update reset button state
+          const hasIgnoredDevices = settings.get_strv('ignored-devices').length > 0;
+          resetButton.sensitive = hasIgnoredDevices;
+        });
+
+        deviceListGroup.add(deviceRow);
+        deviceRows.push(deviceRow);
+      });
+
+      // Update reset button state
+      const hasIgnoredDevices = ignoredDevices.length > 0;
+      resetButton.sensitive = hasIgnoredDevices;
+
+      statusLabel.label = _(`✓ Found ${devices.length} device(s)`);
+      statusLabel.css_classes = ['success'];
+    } catch (error) {
+      console.error('Device discovery failed:', error);
+      let errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (errorMessage.includes('Connection refused') || errorMessage.includes('ECONNREFUSED')) {
+        errorMessage = 'Connection refused - Make sure OpenRGB server is running';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
+        errorMessage = 'Connection timeout - Check host and port settings';
+      }
+
+      statusLabel.label = _(`✗ ${errorMessage}`);
+      statusLabel.css_classes = ['error'];
+    } finally {
+      button.sensitive = true;
+    }
   }
 
   private async _testConnection(

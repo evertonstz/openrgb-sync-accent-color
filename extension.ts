@@ -54,12 +54,7 @@ export default class OpenRGBAccentSyncExtension
     const host = this.settings.get_string('openrgb-host') || ExtensionConstants.DEFAULT_HOST;
     const port = this.settings.get_int('openrgb-port') || ExtensionConstants.DEFAULT_PORT;
 
-    this.openrgbClient = new OpenRGBClient(
-      host,
-      port,
-      ExtensionConstants.DEFAULT_CLIENT_NAME,
-      this.settings,
-    );
+    this.openrgbClient = new OpenRGBClient(host, port, ExtensionConstants.DEFAULT_CLIENT_NAME);
 
     this.initializeOpenRGB();
     this.monitorAccentColor();
@@ -403,12 +398,39 @@ export default class OpenRGBAccentSyncExtension
         );
       }
 
-      console.log(`OpenRGB Accent Sync: Calling setAllDevicesColor...`);
+      console.log(`OpenRGB Accent Sync: Calling setDevicesColor...`);
       if (!this.openrgbClient) {
         throw new Error('OpenRGB client not available');
       }
 
-      const results = await this.openrgbClient.setAllDevicesColor(color);
+      // Get ignored devices from settings
+      const ignoredDeviceIds = this.settings
+        ? this.settings.get_strv('ignored-devices').map((id) => parseInt(id))
+        : [];
+
+      // Get all devices from client
+      const allDevices = this.openrgbClient.getDevices();
+
+      // Filter out ignored devices
+      const devicesToSync = allDevices.filter((device) => !ignoredDeviceIds.includes(device.id));
+
+      console.log(
+        `OpenRGB Accent Sync: Syncing ${devicesToSync.length} devices (${ignoredDeviceIds.length} ignored)`,
+      );
+      if (ignoredDeviceIds.length > 0) {
+        console.log(`OpenRGB Accent Sync: Ignored device IDs: [${ignoredDeviceIds.join(', ')}]`);
+      }
+
+      // Get setDirectModeOnUpdate setting
+      const setDirectModeOnUpdate = this.settings
+        ? this.settings.get_boolean('set-direct-mode-on-update')
+        : false;
+
+      const results = await this.openrgbClient.setDevicesColor(
+        devicesToSync,
+        color,
+        setDirectModeOnUpdate,
+      );
 
       const successful = results.filter((r) => r.success).length;
       const total = results.length;

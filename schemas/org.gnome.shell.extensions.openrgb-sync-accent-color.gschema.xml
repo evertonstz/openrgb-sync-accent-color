@@ -23,10 +23,10 @@
             <summary>Sync Delay (ms)</summary>
             <description>Delay in milliseconds before syncing color changes</description>
         </key>
-        <key name="selected-devices" type="as">
+        <key name="ignored-devices" type="as">
             <default>[]</default>
-            <summary>Selected Devices</summary>
-            <description>List of device indices to sync (empty means all devices)</description>
+            <summary>Ignored Devices</summary>
+            <description>List of device IDs that should be ignored during color synchronization</description>
         </key>
         <key name="set-direct-mode-on-update" type="b">
             <default>false</default>

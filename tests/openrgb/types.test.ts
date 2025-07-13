@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  type RGBColor,
-  validateRGBColor,
   createRGBColor,
   isValidRGBColor,
+  type RGBColor,
+  validateRGBColor,
 } from '../../src/openrgb/types.js';
 
 describe('OpenRGB Types Utility Functions', () => {

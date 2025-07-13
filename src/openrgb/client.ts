@@ -3,7 +3,7 @@ import { OpenRGBConnectionError, OpenRGBError } from './errors.js';
 import { NetworkClient } from './network.js';
 import { type RGBColor, validateRGBColor } from './types.js';
 
-interface Device {
+export interface Device {
   id: number;
   name: string;
   ledCount: number;
@@ -17,14 +17,8 @@ interface SyncResult {
   error?: string;
 }
 
-interface Settings {
-  get_strv(key: string): string[];
-  get_boolean(key: string): boolean;
-}
-
 export class OpenRGBClient {
   private networkClient: NetworkClient;
-  private settings: Settings | null;
   private devices: Device[];
   public connected: boolean;
 
@@ -32,10 +26,8 @@ export class OpenRGBClient {
     address: string = '127.0.0.1',
     port: number = 6742,
     name: string = 'GNOME-OpenRGB-AccentSync',
-    settings: Settings | null = null,
   ) {
     this.networkClient = new NetworkClient(address, port, name);
-    this.settings = settings;
     this.devices = [];
     this.connected = false;
   }
@@ -130,7 +122,18 @@ export class OpenRGBClient {
     return this.devices;
   }
 
-  async setAllDevicesColor(color: RGBColor): Promise<SyncResult[]> {
+  async setAllDevicesColor(
+    color: RGBColor,
+    setDirectModeOnUpdate: boolean = false,
+  ): Promise<SyncResult[]> {
+    return this.setDevicesColor(this.devices, color, setDirectModeOnUpdate);
+  }
+
+  async setDevicesColor(
+    devices: Device[],
+    color: RGBColor,
+    setDirectModeOnUpdate: boolean = false,
+  ): Promise<SyncResult[]> {
     const results: SyncResult[] = [];
 
     if (!this.connected) {
@@ -139,17 +142,9 @@ export class OpenRGBClient {
 
     const validatedColor = validateRGBColor(color);
 
-    const selectedDeviceIds = this.settings
-      ? this.settings.get_strv('selected-devices').map((id) => parseInt(id))
-      : [];
-    const devicesToSync =
-      selectedDeviceIds.length > 0
-        ? this.devices.filter((device) => selectedDeviceIds.includes(device.id))
-        : this.devices;
+    console.log(`OpenRGB: Syncing ${devices.length} devices`);
 
-    console.log(`OpenRGB: Syncing ${devicesToSync.length} devices`);
-
-    for (const device of devicesToSync) {
+    for (const device of devices) {
       try {
         if (device.ledCount === 0) {
           console.log(`OpenRGB: Skipping device ${device.id} - 0 LEDs`);
@@ -161,9 +156,6 @@ export class OpenRGBClient {
           `OpenRGB: Updating device ${device.id} (${device.name}) with ${device.ledCount} LEDs`,
         );
 
-        const setDirectModeOnUpdate = this.settings
-          ? this.settings.get_boolean('set-direct-mode-on-update')
-          : false;
         if (setDirectModeOnUpdate) {
           try {
             await this.networkClient.setDeviceMode(device.id, device.directModeIndex);
@@ -188,5 +180,19 @@ export class OpenRGBClient {
     }
 
     return results;
+  }
+
+  /**
+   * Get the list of discovered devices
+   */
+  getDevices(): Device[] {
+    return [...this.devices];
+  }
+
+  /**
+   * Get device count
+   */
+  getDeviceCount(): number {
+    return this.devices.length;
   }
 }
