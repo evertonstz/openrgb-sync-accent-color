@@ -404,9 +404,20 @@ export default class OpenRGBAccentSyncExtension
       }
 
       // Get ignored devices from settings
-      const ignoredDeviceIds = this.settings
-        ? this.settings.get_strv('ignored-devices').map((id) => parseInt(id))
-        : [];
+      const ignoredDeviceJsons = this.settings ? this.settings.get_strv('ignored-devices') : [];
+
+      // Parse ignored devices from JSON
+      const ignoredDeviceIds = ignoredDeviceJsons
+        .map((deviceJson) => {
+          try {
+            const device = JSON.parse(deviceJson);
+            return device.id;
+          } catch (error) {
+            console.warn('Failed to parse ignored device JSON:', deviceJson, error);
+            return -1; // Invalid ID that won't match any real device
+          }
+        })
+        .filter((id) => id !== -1);
 
       // Get all devices from client
       const allDevices = this.openrgbClient.getDevices();

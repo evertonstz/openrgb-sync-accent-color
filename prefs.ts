@@ -160,18 +160,13 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   }
 
   private _createDevicesGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
-    const devicesGroup = new Adw.PreferencesGroup({
-      title: _('Device Management'),
-      description: _('Select which OpenRGB devices should be synchronized with accent colors.'),
+    // Available Devices Section with Discovery
+    const deviceListGroup = new Adw.PreferencesGroup({
+      title: _('Available Devices'),
+      description: _('Discover and manage OpenRGB devices for accent color synchronization.'),
     });
 
-    // Connection status for device discovery
-    const discoveryStatusLabel = new Gtk.Label({
-      label: _('Click "Discover Devices" to find available OpenRGB devices'),
-      css_classes: ['dim-label'],
-      wrap: true,
-    });
-
+    // Device discovery controls
     const discoveryRow = new Adw.ActionRow({
       title: _('Device Discovery'),
       subtitle: _('Scan for available OpenRGB devices'),
@@ -183,34 +178,55 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       valign: Gtk.Align.CENTER,
     });
 
+    const discoveryStatusLabel = new Gtk.Label({
+      label: _('Click "Discover Devices" to find available OpenRGB devices'),
+      css_classes: ['dim-label'],
+      wrap: true,
+      halign: Gtk.Align.END,
+      valign: Gtk.Align.CENTER,
+    });
+
+    discoveryRow.add_suffix(discoveryStatusLabel);
+    discoveryRow.add_suffix(discoverButton);
+
+    deviceListGroup.add(discoveryRow);
+
+    // Ignored Devices Section
+    const ignoredDevicesGroup = new Adw.PreferencesGroup({
+      title: _('Ignored Devices'),
+      description: _('Devices that are currently excluded from synchronization.'),
+    });
+
+    const ignoredDevicesRows: Adw.SwitchRow[] = [];
+    const deviceRows: Adw.SwitchRow[] = [];
+
     const resetButton = new Gtk.Button({
       label: _('Reset All'),
       css_classes: ['destructive-action'],
       valign: Gtk.Align.CENTER,
-      sensitive: false,
     });
 
-    discoveryRow.add_suffix(resetButton);
-    discoveryRow.add_suffix(discoverButton);
-
-    // Device list container
-    const deviceListGroup = new Adw.PreferencesGroup({
-      title: _('Available Devices'),
+    const resetRow = new Adw.ActionRow({
+      title: _('Reset Ignored Devices'),
+      subtitle: _('Clear all ignored devices and enable synchronization for all'),
     });
-
-    const deviceRows: Adw.SwitchRow[] = [];
+    resetRow.add_suffix(resetButton);
 
     // Reset button functionality
     resetButton.connect('clicked', () => {
       // Clear ignored devices (enable all)
       settings.set_strv('ignored-devices', []);
 
-      // Update UI
+      // Update all UI sections
       deviceRows.forEach((row) => {
         row.active = true;
       });
-
-      resetButton.sensitive = false;
+      this._updateIgnoredDevicesSection(
+        settings,
+        ignoredDevicesGroup,
+        ignoredDevicesRows,
+        resetButton,
+      );
     });
 
     // Discover button functionality
@@ -222,13 +238,23 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         deviceListGroup,
         resetButton,
         deviceRows,
+        ignoredDevicesGroup,
+        ignoredDevicesRows,
       );
     });
 
-    devicesGroup.add(discoveryRow);
-    devicesGroup.add(discoveryStatusLabel);
-    page.add(devicesGroup);
+    // Initialize ignored devices section
+    this._updateIgnoredDevicesSection(
+      settings,
+      ignoredDevicesGroup,
+      ignoredDevicesRows,
+      resetButton,
+    );
+
     page.add(deviceListGroup);
+
+    ignoredDevicesGroup.add(resetRow);
+    page.add(ignoredDevicesGroup);
   }
 
   private async _discoverDevices(
@@ -238,12 +264,14 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     deviceListGroup: Adw.PreferencesGroup,
     resetButton: Gtk.Button,
     deviceRows: Adw.SwitchRow[],
+    ignoredDevicesGroup: Adw.PreferencesGroup,
+    ignoredDevicesRows: Adw.SwitchRow[],
   ): Promise<void> {
     button.sensitive = false;
-    statusLabel.label = _('Discovering devices...');
+    statusLabel.label = _('Discovering...');
     statusLabel.css_classes = ['dim-label'];
 
-    // Clear existing device rows
+    // Clear existing device rows (but keep the discovery row)
     deviceRows.forEach((row) => deviceListGroup.remove(row));
     deviceRows.length = 0;
 
@@ -259,15 +287,34 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       if (devices.length === 0) {
         statusLabel.label = _('No devices found');
         statusLabel.css_classes = ['warning'];
+        
+        // Add a placeholder message
+        const noDevicesRow = new Adw.ActionRow({
+          title: _('No devices found'),
+          subtitle: _('Make sure OpenRGB server is running and devices are connected'),
+        });
+        deviceListGroup.add(noDevicesRow);
+        deviceRows.push(noDevicesRow as any);
         return;
       }
 
       // Get currently ignored devices
-      const ignoredDevices = settings.get_strv('ignored-devices').map((id) => parseInt(id));
+      const ignoredDeviceJsons = settings.get_strv('ignored-devices');
+      const ignoredDeviceIds = ignoredDeviceJsons
+        .map((deviceJson) => {
+          try {
+            const device = JSON.parse(deviceJson);
+            return device.id;
+          } catch (error) {
+            console.warn('Failed to parse ignored device JSON:', deviceJson, error);
+            return -1;
+          }
+        })
+        .filter((id) => id !== -1);
 
       // Create device rows
       devices.forEach((device) => {
-        const isEnabled = !ignoredDevices.includes(device.id);
+        const isEnabled = !ignoredDeviceIds.includes(device.id);
 
         const deviceRow = new Adw.SwitchRow({
           title: device.name,
@@ -276,22 +323,49 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         });
 
         deviceRow.connect('notify::active', () => {
-          const currentIgnored = settings.get_strv('ignored-devices').map((id) => parseInt(id));
+          const currentIgnoredJsons = settings.get_strv('ignored-devices');
+          const currentIgnoredDevices = currentIgnoredJsons
+            .map((deviceJson) => {
+              try {
+                return JSON.parse(deviceJson);
+              } catch (error) {
+                console.warn('Failed to parse ignored device JSON:', deviceJson, error);
+                return null;
+              }
+            })
+            .filter((device) => device !== null);
 
           if (deviceRow.active) {
             // Enable device (remove from ignored list)
-            const newIgnored = currentIgnored.filter((id) => id !== device.id);
+            const newIgnored = currentIgnoredDevices.filter(
+              (ignoredDevice) => ignoredDevice.id !== device.id,
+            );
             settings.set_strv(
               'ignored-devices',
-              newIgnored.map((id) => id.toString()),
+              newIgnored.map((device) =>
+                JSON.stringify({
+                  id: device.id,
+                  name: device.name,
+                  ledCount: device.ledCount,
+                }),
+              ),
             );
           } else {
             // Disable device (add to ignored list)
-            if (!currentIgnored.includes(device.id)) {
-              currentIgnored.push(device.id);
+            const deviceExists = currentIgnoredDevices.some(
+              (ignoredDevice) => ignoredDevice.id === device.id,
+            );
+            if (!deviceExists) {
+              currentIgnoredDevices.push(device);
               settings.set_strv(
                 'ignored-devices',
-                currentIgnored.map((id) => id.toString()),
+                currentIgnoredDevices.map((device) =>
+                  JSON.stringify({
+                    id: device.id,
+                    name: device.name,
+                    ledCount: device.ledCount,
+                  }),
+                ),
               );
             }
           }
@@ -299,6 +373,14 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
           // Update reset button state
           const hasIgnoredDevices = settings.get_strv('ignored-devices').length > 0;
           resetButton.sensitive = hasIgnoredDevices;
+
+          // Update ignored devices section
+          this._updateIgnoredDevicesSection(
+            settings,
+            ignoredDevicesGroup,
+            ignoredDevicesRows,
+            resetButton,
+          );
         });
 
         deviceListGroup.add(deviceRow);
@@ -306,23 +388,41 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       });
 
       // Update reset button state
-      const hasIgnoredDevices = ignoredDevices.length > 0;
+      const hasIgnoredDevices = ignoredDeviceIds.length > 0;
       resetButton.sensitive = hasIgnoredDevices;
 
-      statusLabel.label = _(`✓ Found ${devices.length} device(s)`);
+      // Update ignored devices section
+      this._updateIgnoredDevicesSection(
+        settings,
+        ignoredDevicesGroup,
+        ignoredDevicesRows,
+        resetButton,
+      );
+
+      statusLabel.label = _(`✓ ${devices.length} found`);
       statusLabel.css_classes = ['success'];
     } catch (error) {
       console.error('Device discovery failed:', error);
       let errorMessage = error instanceof Error ? error.message : String(error);
 
       if (errorMessage.includes('Connection refused') || errorMessage.includes('ECONNREFUSED')) {
-        errorMessage = 'Connection refused - Make sure OpenRGB server is running';
+        errorMessage = 'Connection refused';
       } else if (errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT')) {
-        errorMessage = 'Connection timeout - Check host and port settings';
+        errorMessage = 'Connection timeout';
+      } else {
+        errorMessage = 'Discovery failed';
       }
 
       statusLabel.label = _(`✗ ${errorMessage}`);
       statusLabel.css_classes = ['error'];
+      
+      // Add an error message row
+      const errorRow = new Adw.ActionRow({
+        title: _('Discovery Failed'),
+        subtitle: _('Make sure OpenRGB server is running and check connection settings'),
+      });
+      deviceListGroup.add(errorRow);
+      deviceRows.push(errorRow as any);
     } finally {
       button.sensitive = true;
     }
@@ -399,5 +499,86 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     } finally {
       button.sensitive = true;
     }
+  }
+
+  private _updateIgnoredDevicesSection(
+    settings: Gio.Settings,
+    ignoredDevicesGroup: Adw.PreferencesGroup,
+    ignoredDevicesRows: Adw.SwitchRow[],
+    resetButton: Gtk.Button,
+  ): void {
+    // Clear existing ignored device rows
+    ignoredDevicesRows.forEach((row) => ignoredDevicesGroup.remove(row));
+    ignoredDevicesRows.length = 0;
+
+    // Get ignored devices from settings as JSON strings
+    const ignoredDeviceJsons = settings.get_strv('ignored-devices');
+
+    // Parse ignored devices from JSON
+    const ignoredDevices = ignoredDeviceJsons
+      .map((deviceJson) => {
+        try {
+          return JSON.parse(deviceJson);
+        } catch (error) {
+          console.warn('Failed to parse ignored device JSON:', deviceJson, error);
+          return null;
+        }
+      })
+      .filter((device) => device !== null);
+
+    // Update reset button state
+    resetButton.sensitive = ignoredDevices.length > 0;
+
+    if (ignoredDevices.length === 0) {
+      // Show "no ignored devices" message
+      const noDevicesRow = new Adw.ActionRow({
+        title: _('No ignored devices'),
+        subtitle: _('All devices are currently enabled for synchronization'),
+      });
+      ignoredDevicesGroup.add(noDevicesRow);
+      ignoredDevicesRows.push(noDevicesRow as any); // Store for cleanup
+      return;
+    }
+
+    // Create rows for each ignored device with full information
+    ignoredDevices.forEach((device) => {
+      const deviceRow = new Adw.SwitchRow({
+        title: device.name || _(`Device ID: ${device.id}`),
+        subtitle: _(`Device ID: ${device.id} • LEDs: ${device.ledCount || 0} • Currently ignored`),
+        active: false, // Ignored devices are shown as disabled
+      });
+
+      deviceRow.connect('notify::active', () => {
+        if (deviceRow.active) {
+          // Re-enable device (remove from ignored list)
+          const currentIgnoredJsons = settings.get_strv('ignored-devices');
+          const newIgnoredJsons = currentIgnoredJsons.filter((deviceJson) => {
+            try {
+              const ignoredDevice = JSON.parse(deviceJson);
+              return ignoredDevice.id !== device.id;
+            } catch (error) {
+              console.warn(
+                'Failed to parse ignored device JSON during removal:',
+                deviceJson,
+                error,
+              );
+              return false; // Remove invalid entries
+            }
+          });
+          settings.set_strv('ignored-devices', newIgnoredJsons);
+
+          // Update this section
+          this._updateIgnoredDevicesSection(
+            settings,
+            ignoredDevicesGroup,
+            ignoredDevicesRows,
+            resetButton,
+          );
+        }
+      });
+
+      ignoredDevicesGroup.add(deviceRow);
+      ignoredDevicesRows.push(deviceRow);
+    });
   }
 }

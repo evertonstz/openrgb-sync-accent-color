@@ -37,7 +37,7 @@ export interface ExtensionSettings {
   'openrgb-port': number;
   'sync-enabled': boolean;
   'sync-delay': number;
-  'ignored-devices': string[];
+  'ignored-devices': string[]; // Array of JSON-serialized Device objects
 }
 
 /**
