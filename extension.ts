@@ -346,8 +346,6 @@ export default class OpenRGBAccentSyncExtension
     try {
       const accentColor = settings.get_string(ExtensionConstants.ACCENT_COLOR_KEY);
 
-      // GNOME accent colors are predefined values like 'blue', 'teal', 'green', etc.
-      // Use the centralized accent color mapping from ExtensionConstants
       return ACCENT_COLOR_MAP[accentColor as AccentColorName] ?? ACCENT_COLOR_MAP.default;
     } catch (error: unknown) {
       const errorMsg = formatErrorMessage(error);
@@ -403,10 +401,8 @@ export default class OpenRGBAccentSyncExtension
         throw new Error('OpenRGB client not available');
       }
 
-      // Get ignored devices from settings
       const ignoredDeviceJsons = this.settings ? this.settings.get_strv('ignored-devices') : [];
 
-      // Parse ignored devices from JSON
       const ignoredDeviceIds = ignoredDeviceJsons
         .map((deviceJson) => {
           try {
@@ -419,10 +415,8 @@ export default class OpenRGBAccentSyncExtension
         })
         .filter((id) => id !== -1);
 
-      // Get all devices from client
       const allDevices = this.openrgbClient.getDevices();
 
-      // Filter out ignored devices
       const devicesToSync = allDevices.filter((device) => !ignoredDeviceIds.includes(device.id));
 
       console.log(
@@ -432,7 +426,6 @@ export default class OpenRGBAccentSyncExtension
         console.log(`OpenRGB Accent Sync: Ignored device IDs: [${ignoredDeviceIds.join(', ')}]`);
       }
 
-      // Get setDirectModeOnUpdate setting
       const setDirectModeOnUpdate = this.settings
         ? this.settings.get_boolean('set-direct-mode-on-update')
         : false;
@@ -459,7 +452,6 @@ export default class OpenRGBAccentSyncExtension
       if (isOpenRGBError(error)) {
         console.error(`OpenRGB Accent Sync: Color sync failed - ${errorMsg}`);
 
-        // Handle specific error types
         if (error instanceof OpenRGBConnectionError) {
           console.error(`OpenRGB Accent Sync: Connection error at ${error.address}:${error.port}`);
         } else if (error instanceof OpenRGBTimeoutError) {

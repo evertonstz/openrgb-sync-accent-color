@@ -15,13 +15,11 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   override fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
     const settings = this.getSettings();
 
-    // Connection & Sync Page
     const mainPage = new Adw.PreferencesPage({
       title: _('Connection & Sync'),
       icon_name: 'applications-graphics-symbolic',
     });
 
-    // Devices Page
     const devicesPage = new Adw.PreferencesPage({
       title: _('Devices'),
       icon_name: 'computer-symbolic',
@@ -161,13 +159,11 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   }
 
   private _createDevicesGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
-    // Available Devices Section with Discovery
     const deviceListGroup = new Adw.PreferencesGroup({
       title: _('Available Devices'),
       description: _('Discover and manage OpenRGB devices for accent color synchronization.'),
     });
 
-    // Device discovery controls
     const discoveryRow = new Adw.ActionRow({
       title: _('Device Discovery'),
       subtitle: _('Scan for available OpenRGB devices'),
@@ -183,7 +179,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     deviceListGroup.add(discoveryRow);
 
-    // Ignored Devices Section
     const ignoredDevicesGroup = new Adw.PreferencesGroup({
       title: _('Ignored Devices'),
       description: _('Devices that are currently excluded from synchronization.'),
@@ -204,9 +199,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     });
     resetRow.add_suffix(resetButton);
 
-    // Reset button functionality
     resetButton.connect('clicked', () => {
-      // Get currently ignored devices before clearing
       const ignoredDeviceJsons = settings.get_strv('ignored-devices');
       const reEnabledDevices = ignoredDeviceJsons
         .map((deviceJson) => {
@@ -218,10 +211,8 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         })
         .filter((device) => device !== null);
 
-      // Clear ignored devices (enable all)
       settings.set_strv('ignored-devices', []);
 
-      // Update all UI sections
       this._updateIgnoredDevicesSection(
         settings,
         ignoredDevicesGroup,
@@ -231,16 +222,13 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         deviceRows,
       );
 
-      // Trigger color update for all re-enabled devices
       reEnabledDevices.forEach((device) => {
         this._triggerColorUpdate(settings, device);
       });
 
-      // Trigger device discovery to refresh the available devices list
       discoverButton.emit('clicked');
     });
 
-    // Discover button functionality
     discoverButton.connect('clicked', async () => {
       await this._discoverDevices(
         settings,
@@ -253,7 +241,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       );
     });
 
-    // Initialize ignored devices section
     this._updateIgnoredDevicesSection(
       settings,
       ignoredDevicesGroup,
@@ -280,14 +267,12 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   ): Promise<void> {
     button.sensitive = false;
     
-    // Create a temporary status row for discovery feedback
     const statusRow = new Adw.ActionRow({
       title: _('Discovering devices...'),
       subtitle: _('Please wait while scanning for OpenRGB devices'),
     });
     deviceListGroup.add(statusRow);
 
-    // Clear existing device rows (but keep the discovery row and status row)
     deviceRows.forEach((row) => deviceListGroup.remove(row));
     deviceRows.length = 0;
 
@@ -301,16 +286,13 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       client.disconnect();
 
       if (devices.length === 0) {
-        // Update status row to show no devices found
         statusRow.title = _('No devices found');
         statusRow.subtitle = _('Make sure OpenRGB server is running and devices are connected');
         return;
       }
 
-      // Remove the status row since we found devices
       deviceListGroup.remove(statusRow);
 
-      // Get currently ignored devices
       const ignoredDeviceJsons = settings.get_strv('ignored-devices');
       const ignoredDeviceIds = ignoredDeviceJsons
         .map((deviceJson) => {
@@ -324,11 +306,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         })
         .filter((id) => id !== -1);
 
-      // Create device rows
       devices.forEach((device) => {
         const isEnabled = !ignoredDeviceIds.includes(device.id);
 
-        // Only show enabled devices in the available devices section
         if (!isEnabled) {
           return;
         }
@@ -359,7 +339,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
             })
             .filter((device) => device !== null);
 
-          // Add device to ignored list
           const deviceExists = currentIgnoredDevices.some(
             (ignoredDevice) => ignoredDevice.id === device.id,
           );
@@ -377,18 +356,15 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
             );
           }
 
-          // Remove the device from the available devices list
           deviceListGroup.remove(deviceRow);
           const deviceIndex = deviceRows.indexOf(deviceRow);
           if (deviceIndex > -1) {
             deviceRows.splice(deviceIndex, 1);
           }
 
-          // Update reset button state
           const hasIgnoredDevices = settings.get_strv('ignored-devices').length > 0;
           resetButton.sensitive = hasIgnoredDevices;
 
-          // Update ignored devices section
           this._updateIgnoredDevicesSection(
             settings,
             ignoredDevicesGroup,
@@ -403,11 +379,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         deviceRows.push(deviceRow);
       });
 
-      // Update reset button state
       const hasIgnoredDevices = ignoredDeviceIds.length > 0;
       resetButton.sensitive = hasIgnoredDevices;
 
-      // Update ignored devices section
       this._updateIgnoredDevicesSection(
         settings,
         ignoredDevicesGroup,
@@ -417,7 +391,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         deviceRows,
       );
 
-      // Remove the successful discovery status row
       deviceListGroup.remove(statusRow);
     } catch (error) {
       console.error('Device discovery failed:', error);
@@ -431,7 +404,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         errorMessage = 'Discovery failed';
       }
 
-      // Update status row to show error
       statusRow.title = _('Discovery Failed');
       statusRow.subtitle = _(`${errorMessage} - Make sure OpenRGB server is running`);
     } finally {
@@ -520,14 +492,11 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     deviceListGroup?: Adw.PreferencesGroup,
     deviceRows?: Adw.ActionRow[],
   ): void {
-    // Clear existing ignored device rows
     ignoredDevicesRows.forEach((row) => ignoredDevicesGroup.remove(row));
     ignoredDevicesRows.length = 0;
 
-    // Get ignored devices from settings as JSON strings
     const ignoredDeviceJsons = settings.get_strv('ignored-devices');
 
-    // Parse ignored devices from JSON
     const ignoredDevices = ignoredDeviceJsons
       .map((deviceJson) => {
         try {
@@ -539,21 +508,18 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       })
       .filter((device) => device !== null);
 
-    // Update reset button state
     resetButton.sensitive = ignoredDevices.length > 0;
 
     if (ignoredDevices.length === 0) {
-      // Show "no ignored devices" message
       const noDevicesRow = new Adw.ActionRow({
         title: _('No ignored devices'),
         subtitle: _('All devices are currently enabled for synchronization'),
       });
       ignoredDevicesGroup.add(noDevicesRow);
-      ignoredDevicesRows.push(noDevicesRow as any); // Store for cleanup
+      ignoredDevicesRows.push(noDevicesRow as any);
       return;
     }
 
-    // Create rows for each ignored device with full information
     ignoredDevices.forEach((device) => {
       const deviceRow = new Adw.ActionRow({
         title: device.name || _(`Device ID: ${device.id}`),
@@ -570,7 +536,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       deviceRow.add_suffix(removeButton);
 
       removeButton.connect('clicked', () => {
-        // Re-enable device (remove from ignored list)
         const currentIgnoredJsons = settings.get_strv('ignored-devices');
         const newIgnoredJsons = currentIgnoredJsons.filter((deviceJson) => {
           try {
@@ -587,7 +552,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         });
         settings.set_strv('ignored-devices', newIgnoredJsons);
 
-        // Add device back to available devices section if provided
         if (deviceListGroup && deviceRows) {
           const newDeviceRow = new Adw.ActionRow({
             title: device.name || _(`Device ID: ${device.id}`),
@@ -602,7 +566,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
           newDeviceRow.add_suffix(ignoreButton);
 
-          // Add the same click handler for the new row
           ignoreButton.connect('clicked', () => {
             const currentIgnoredJsons = settings.get_strv('ignored-devices');
             const currentIgnoredDevices = currentIgnoredJsons
@@ -632,14 +595,12 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
               );
             }
 
-            // Remove from available devices
             deviceListGroup.remove(newDeviceRow);
             const deviceIndex = deviceRows.indexOf(newDeviceRow);
             if (deviceIndex > -1) {
               deviceRows.splice(deviceIndex, 1);
             }
 
-            // Update ignored devices section
             this._updateIgnoredDevicesSection(
               settings,
               ignoredDevicesGroup,
@@ -654,10 +615,8 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
           deviceRows.push(newDeviceRow);
         }
 
-        // Trigger color update for the newly enabled device
         this._triggerColorUpdate(settings, device);
 
-        // Update this section
         this._updateIgnoredDevicesSection(
           settings,
           ignoredDevicesGroup,
@@ -674,14 +633,12 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   }
 
   private async _triggerColorUpdate(settings: Gio.Settings, device: any): Promise<void> {
-    // Check if sync is enabled
     if (!settings.get_boolean('sync-enabled')) {
       console.log('OpenRGB Accent Sync: Sync is disabled, skipping color update for re-enabled device');
       return;
     }
 
     try {
-      // Get current accent color from GNOME settings
       const desktopSettings = new Gio.Settings({
         schema_id: ExtensionConstants.DESKTOP_INTERFACE_SCHEMA,
       });
@@ -692,17 +649,14 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       console.log(`OpenRGB Accent Sync: Triggering color update for re-enabled device ${device.name} (ID: ${device.id})`);
       console.log(`OpenRGB Accent Sync: Current accent color: RGB(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`);
 
-      // Connect to OpenRGB and update the specific device
       const host = settings.get_string('openrgb-host');
       const port = settings.get_int('openrgb-port');
       const client = new OpenRGBClient(host, port, 'GNOME-Preferences-ColorUpdate');
 
       await client.connect();
       
-      // Get the setDirectModeOnUpdate setting
       const setDirectModeOnUpdate = settings.get_boolean('set-direct-mode-on-update');
       
-      // Sync color to the specific device
       const results = await client.setDevicesColor([device], currentColor, setDirectModeOnUpdate);
       
       client.disconnect();
