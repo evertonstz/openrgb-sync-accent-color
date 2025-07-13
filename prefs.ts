@@ -9,6 +9,7 @@ import {
 } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import { OpenRGBClient } from './src/openrgb/index.js';
+import { ACCENT_COLOR_MAP, type AccentColorName, ExtensionConstants } from './src/types/extension.js';
 
 export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   override fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
@@ -178,15 +179,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       valign: Gtk.Align.CENTER,
     });
 
-    const discoveryStatusLabel = new Gtk.Label({
-      label: _('Click "Discover Devices" to find available OpenRGB devices'),
-      css_classes: ['dim-label'],
-      wrap: true,
-      halign: Gtk.Align.END,
-      valign: Gtk.Align.CENTER,
-    });
-
-    discoveryRow.add_suffix(discoveryStatusLabel);
     discoveryRow.add_suffix(discoverButton);
 
     deviceListGroup.add(discoveryRow);
@@ -214,6 +206,18 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     // Reset button functionality
     resetButton.connect('clicked', () => {
+      // Get currently ignored devices before clearing
+      const ignoredDeviceJsons = settings.get_strv('ignored-devices');
+      const reEnabledDevices = ignoredDeviceJsons
+        .map((deviceJson) => {
+          try {
+            return JSON.parse(deviceJson);
+          } catch {
+            return null;
+          }
+        })
+        .filter((device) => device !== null);
+
       // Clear ignored devices (enable all)
       settings.set_strv('ignored-devices', []);
 
@@ -226,7 +230,14 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         ignoredDevicesGroup,
         ignoredDevicesRows,
         resetButton,
+        deviceListGroup,
+        deviceRows,
       );
+
+      // Trigger color update for all re-enabled devices
+      reEnabledDevices.forEach((device) => {
+        this._triggerColorUpdate(settings, device);
+      });
     });
 
     // Discover button functionality
@@ -234,7 +245,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       await this._discoverDevices(
         settings,
         discoverButton,
-        discoveryStatusLabel,
         deviceListGroup,
         resetButton,
         deviceRows,
@@ -249,6 +259,8 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       ignoredDevicesGroup,
       ignoredDevicesRows,
       resetButton,
+      deviceListGroup,
+      deviceRows,
     );
 
     page.add(deviceListGroup);
@@ -260,7 +272,6 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   private async _discoverDevices(
     settings: Gio.Settings,
     button: Gtk.Button,
-    statusLabel: Gtk.Label,
     deviceListGroup: Adw.PreferencesGroup,
     resetButton: Gtk.Button,
     deviceRows: Adw.SwitchRow[],
@@ -268,10 +279,15 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     ignoredDevicesRows: Adw.SwitchRow[],
   ): Promise<void> {
     button.sensitive = false;
-    statusLabel.label = _('Discovering...');
-    statusLabel.css_classes = ['dim-label'];
+    
+    // Create a temporary status row for discovery feedback
+    const statusRow = new Adw.ActionRow({
+      title: _('Discovering devices...'),
+      subtitle: _('Please wait while scanning for OpenRGB devices'),
+    });
+    deviceListGroup.add(statusRow);
 
-    // Clear existing device rows (but keep the discovery row)
+    // Clear existing device rows (but keep the discovery row and status row)
     deviceRows.forEach((row) => deviceListGroup.remove(row));
     deviceRows.length = 0;
 
@@ -285,18 +301,14 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       client.disconnect();
 
       if (devices.length === 0) {
-        statusLabel.label = _('No devices found');
-        statusLabel.css_classes = ['warning'];
-        
-        // Add a placeholder message
-        const noDevicesRow = new Adw.ActionRow({
-          title: _('No devices found'),
-          subtitle: _('Make sure OpenRGB server is running and devices are connected'),
-        });
-        deviceListGroup.add(noDevicesRow);
-        deviceRows.push(noDevicesRow as any);
+        // Update status row to show no devices found
+        statusRow.title = _('No devices found');
+        statusRow.subtitle = _('Make sure OpenRGB server is running and devices are connected');
         return;
       }
+
+      // Remove the status row since we found devices
+      deviceListGroup.remove(statusRow);
 
       // Get currently ignored devices
       const ignoredDeviceJsons = settings.get_strv('ignored-devices');
@@ -350,8 +362,11 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
                 }),
               ),
             );
+            
+            // Trigger color update for the newly enabled device
+            this._triggerColorUpdate(settings, device);
           } else {
-            // Disable device (add to ignored list)
+            // Disable device (add to ignored list and remove from available section)
             const deviceExists = currentIgnoredDevices.some(
               (ignoredDevice) => ignoredDevice.id === device.id,
             );
@@ -368,6 +383,13 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
                 ),
               );
             }
+
+            // Remove the device from the available devices list
+            deviceListGroup.remove(deviceRow);
+            const deviceIndex = deviceRows.indexOf(deviceRow);
+            if (deviceIndex > -1) {
+              deviceRows.splice(deviceIndex, 1);
+            }
           }
 
           // Update reset button state
@@ -380,6 +402,8 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
             ignoredDevicesGroup,
             ignoredDevicesRows,
             resetButton,
+            deviceListGroup,
+            deviceRows,
           );
         });
 
@@ -397,10 +421,12 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         ignoredDevicesGroup,
         ignoredDevicesRows,
         resetButton,
+        deviceListGroup,
+        deviceRows,
       );
 
-      statusLabel.label = _(`✓ ${devices.length} found`);
-      statusLabel.css_classes = ['success'];
+      // Remove the successful discovery status row
+      deviceListGroup.remove(statusRow);
     } catch (error) {
       console.error('Device discovery failed:', error);
       let errorMessage = error instanceof Error ? error.message : String(error);
@@ -413,16 +439,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         errorMessage = 'Discovery failed';
       }
 
-      statusLabel.label = _(`✗ ${errorMessage}`);
-      statusLabel.css_classes = ['error'];
-      
-      // Add an error message row
-      const errorRow = new Adw.ActionRow({
-        title: _('Discovery Failed'),
-        subtitle: _('Make sure OpenRGB server is running and check connection settings'),
-      });
-      deviceListGroup.add(errorRow);
-      deviceRows.push(errorRow as any);
+      // Update status row to show error
+      statusRow.title = _('Discovery Failed');
+      statusRow.subtitle = _(`${errorMessage} - Make sure OpenRGB server is running`);
     } finally {
       button.sensitive = true;
     }
@@ -506,6 +525,8 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     ignoredDevicesGroup: Adw.PreferencesGroup,
     ignoredDevicesRows: Adw.SwitchRow[],
     resetButton: Gtk.Button,
+    deviceListGroup?: Adw.PreferencesGroup,
+    deviceRows?: Adw.SwitchRow[],
   ): void {
     // Clear existing ignored device rows
     ignoredDevicesRows.forEach((row) => ignoredDevicesGroup.remove(row));
@@ -567,12 +588,80 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
           });
           settings.set_strv('ignored-devices', newIgnoredJsons);
 
+          // Add device back to available devices section if provided
+          if (deviceListGroup && deviceRows) {
+            const newDeviceRow = new Adw.SwitchRow({
+              title: device.name || _(`Device ID: ${device.id}`),
+              subtitle: _(`Device ID: ${device.id} • LEDs: ${device.ledCount || 0}`),
+              active: true, // Re-enabled device
+            });
+
+            // Add the same click handler for the new row
+            newDeviceRow.connect('notify::active', () => {
+              if (!newDeviceRow.active) {
+                // Device is being disabled again - add to ignored list and remove from available
+                const currentIgnoredJsons = settings.get_strv('ignored-devices');
+                const currentIgnoredDevices = currentIgnoredJsons
+                  .map((deviceJson) => {
+                    try {
+                      return JSON.parse(deviceJson);
+                    } catch {
+                      return null;
+                    }
+                  })
+                  .filter((device) => device !== null);
+
+                const deviceExists = currentIgnoredDevices.some(
+                  (ignoredDevice) => ignoredDevice.id === device.id,
+                );
+                if (!deviceExists) {
+                  currentIgnoredDevices.push(device);
+                  settings.set_strv(
+                    'ignored-devices',
+                    currentIgnoredDevices.map((device) =>
+                      JSON.stringify({
+                        id: device.id,
+                        name: device.name,
+                        ledCount: device.ledCount,
+                      }),
+                    ),
+                  );
+                }
+
+                // Remove from available devices
+                deviceListGroup.remove(newDeviceRow);
+                const deviceIndex = deviceRows.indexOf(newDeviceRow);
+                if (deviceIndex > -1) {
+                  deviceRows.splice(deviceIndex, 1);
+                }
+
+                // Update ignored devices section
+                this._updateIgnoredDevicesSection(
+                  settings,
+                  ignoredDevicesGroup,
+                  ignoredDevicesRows,
+                  resetButton,
+                  deviceListGroup,
+                  deviceRows,
+                );
+              }
+            });
+
+            deviceListGroup.add(newDeviceRow);
+            deviceRows.push(newDeviceRow);
+          }
+
+          // Trigger color update for the newly enabled device
+          this._triggerColorUpdate(settings, device);
+
           // Update this section
           this._updateIgnoredDevicesSection(
             settings,
             ignoredDevicesGroup,
             ignoredDevicesRows,
             resetButton,
+            deviceListGroup,
+            deviceRows,
           );
         }
       });
@@ -580,5 +669,50 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       ignoredDevicesGroup.add(deviceRow);
       ignoredDevicesRows.push(deviceRow);
     });
+  }
+
+  private async _triggerColorUpdate(settings: Gio.Settings, device: any): Promise<void> {
+    // Check if sync is enabled
+    if (!settings.get_boolean('sync-enabled')) {
+      console.log('OpenRGB Accent Sync: Sync is disabled, skipping color update for re-enabled device');
+      return;
+    }
+
+    try {
+      // Get current accent color from GNOME settings
+      const desktopSettings = new Gio.Settings({
+        schema_id: ExtensionConstants.DESKTOP_INTERFACE_SCHEMA,
+      });
+      
+      const accentColorName = desktopSettings.get_string(ExtensionConstants.ACCENT_COLOR_KEY);
+      const currentColor = ACCENT_COLOR_MAP[accentColorName as AccentColorName] ?? ACCENT_COLOR_MAP.default;
+
+      console.log(`OpenRGB Accent Sync: Triggering color update for re-enabled device ${device.name} (ID: ${device.id})`);
+      console.log(`OpenRGB Accent Sync: Current accent color: RGB(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`);
+
+      // Connect to OpenRGB and update the specific device
+      const host = settings.get_string('openrgb-host');
+      const port = settings.get_int('openrgb-port');
+      const client = new OpenRGBClient(host, port, 'GNOME-Preferences-ColorUpdate');
+
+      await client.connect();
+      
+      // Get the setDirectModeOnUpdate setting
+      const setDirectModeOnUpdate = settings.get_boolean('set-direct-mode-on-update');
+      
+      // Sync color to the specific device
+      const results = await client.setDevicesColor([device], currentColor, setDirectModeOnUpdate);
+      
+      client.disconnect();
+
+      const successful = results.filter((r) => r.success).length;
+      if (successful > 0) {
+        console.log(`OpenRGB Accent Sync: Successfully updated color for re-enabled device ${device.name}`);
+      } else {
+        console.warn(`OpenRGB Accent Sync: Failed to update color for re-enabled device ${device.name}`);
+      }
+    } catch (error) {
+      console.error('OpenRGB Accent Sync: Failed to trigger color update for re-enabled device:', error);
+    }
   }
 }
