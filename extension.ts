@@ -1,6 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {
   formatErrorMessage,
   isOpenRGBError,
@@ -168,6 +169,15 @@ export default class OpenRGBAccentSyncExtension
 
     if (this.reconnectionAttempts >= this.maxReconnectionAttempts) {
       console.error('OpenRGB Accent Sync: Max reconnection attempts reached, giving up');
+      try {
+        Main.notify(
+          'OpenRGB Accent Sync',
+          `Failed to connect to OpenRGB server after ${this.maxReconnectionAttempts} attempts. Please check if OpenRGB is running with server mode enabled.`,
+        );
+      } catch (notificationError) {
+        console.warn('OpenRGB Accent Sync: Failed to show notification:', notificationError);
+      }
+
       return;
     }
 
