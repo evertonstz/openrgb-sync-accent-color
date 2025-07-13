@@ -1,4 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encod        <key name="ignored-devices" type="as">
+            <default>[]</default>
+            <summary>Ignored Devices</summary>
+            <description>List of device objects (as JSON strings) that should be ignored during color synchronization</description>
+        </key>UTF-8"?>
 <schemalist>
     <schema id="org.gnome.shell.extensions.openrgb-sync-accent-color" path="/org/gnome/shell/extensions/openrgb-sync-accent-color/">
         <key name="openrgb-host" type="s">
@@ -23,10 +27,10 @@
             <summary>Sync Delay (ms)</summary>
             <description>Delay in milliseconds before syncing color changes</description>
         </key>
-        <key name="selected-devices" type="as">
+        <key name="ignored-devices" type="as">
             <default>[]</default>
-            <summary>Selected Devices</summary>
-            <description>List of device indices to sync (empty means all devices)</description>
+            <summary>Ignored Devices</summary>
+            <description>List of serialized device objects that should be ignored during color synchronization</description>
         </key>
         <key name="set-direct-mode-on-update" type="b">
             <default>false</default>

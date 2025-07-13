@@ -54,12 +54,7 @@ export default class OpenRGBAccentSyncExtension
     const host = this.settings.get_string('openrgb-host') || ExtensionConstants.DEFAULT_HOST;
     const port = this.settings.get_int('openrgb-port') || ExtensionConstants.DEFAULT_PORT;
 
-    this.openrgbClient = new OpenRGBClient(
-      host,
-      port,
-      ExtensionConstants.DEFAULT_CLIENT_NAME,
-      this.settings,
-    );
+    this.openrgbClient = new OpenRGBClient(host, port, ExtensionConstants.DEFAULT_CLIENT_NAME);
 
     this.initializeOpenRGB();
     this.monitorAccentColor();
@@ -351,8 +346,6 @@ export default class OpenRGBAccentSyncExtension
     try {
       const accentColor = settings.get_string(ExtensionConstants.ACCENT_COLOR_KEY);
 
-      // GNOME accent colors are predefined values like 'blue', 'teal', 'green', etc.
-      // Use the centralized accent color mapping from ExtensionConstants
       return ACCENT_COLOR_MAP[accentColor as AccentColorName] ?? ACCENT_COLOR_MAP.default;
     } catch (error: unknown) {
       const errorMsg = formatErrorMessage(error);
@@ -403,12 +396,45 @@ export default class OpenRGBAccentSyncExtension
         );
       }
 
-      console.log(`OpenRGB Accent Sync: Calling setAllDevicesColor...`);
+      console.log(`OpenRGB Accent Sync: Calling setDevicesColor...`);
       if (!this.openrgbClient) {
         throw new Error('OpenRGB client not available');
       }
 
-      const results = await this.openrgbClient.setAllDevicesColor(color);
+      const ignoredDeviceJsons = this.settings ? this.settings.get_strv('ignored-devices') : [];
+
+      const ignoredDeviceIds = ignoredDeviceJsons
+        .map((deviceJson) => {
+          try {
+            const device = JSON.parse(deviceJson);
+            return device.id;
+          } catch (error) {
+            console.warn('Failed to parse ignored device JSON:', deviceJson, error);
+            return -1; // Invalid ID that won't match any real device
+          }
+        })
+        .filter((id) => id !== -1);
+
+      const allDevices = this.openrgbClient.getDevices();
+
+      const devicesToSync = allDevices.filter((device) => !ignoredDeviceIds.includes(device.id));
+
+      console.log(
+        `OpenRGB Accent Sync: Syncing ${devicesToSync.length} devices (${ignoredDeviceIds.length} ignored)`,
+      );
+      if (ignoredDeviceIds.length > 0) {
+        console.log(`OpenRGB Accent Sync: Ignored device IDs: [${ignoredDeviceIds.join(', ')}]`);
+      }
+
+      const setDirectModeOnUpdate = this.settings
+        ? this.settings.get_boolean('set-direct-mode-on-update')
+        : false;
+
+      const results = await this.openrgbClient.setDevicesColor(
+        devicesToSync,
+        color,
+        setDirectModeOnUpdate,
+      );
 
       const successful = results.filter((r) => r.success).length;
       const total = results.length;
@@ -426,7 +452,6 @@ export default class OpenRGBAccentSyncExtension
       if (isOpenRGBError(error)) {
         console.error(`OpenRGB Accent Sync: Color sync failed - ${errorMsg}`);
 
-        // Handle specific error types
         if (error instanceof OpenRGBConnectionError) {
           console.error(`OpenRGB Accent Sync: Connection error at ${error.address}:${error.port}`);
         } else if (error instanceof OpenRGBTimeoutError) {

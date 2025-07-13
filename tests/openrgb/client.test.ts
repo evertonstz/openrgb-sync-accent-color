@@ -265,26 +265,4 @@ describe('OpenRGBClient', () => {
       }
     });
   });
-
-  describe('settings handling', () => {
-    it('should store settings when provided', () => {
-      const settings = {
-        timeout: 10000,
-        retries: 3,
-        enableLogging: true,
-      };
-      const clientWithSettings = new OpenRGBClient('127.0.0.1', 6742, 'Test', settings as any);
-      expect((clientWithSettings as any).settings).toEqual(settings);
-    });
-
-    it('should handle null settings', () => {
-      const clientWithNullSettings = new OpenRGBClient('127.0.0.1', 6742, 'Test', null);
-      expect((clientWithNullSettings as any).settings).toBeNull();
-    });
-
-    it('should handle undefined settings', () => {
-      const clientWithUndefinedSettings = new OpenRGBClient('127.0.0.1', 6742, 'Test');
-      expect((clientWithUndefinedSettings as any).settings).toBeNull();
-    });
-  });
 });

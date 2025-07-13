@@ -1,5 +1,5 @@
 // Main classes
-export { OpenRGBClient } from './client.js';
+export { type Device, OpenRGBClient } from './client.js';
 export { DeviceData } from './device.js';
 // Enums
 export { PacketType } from './enums.js';
