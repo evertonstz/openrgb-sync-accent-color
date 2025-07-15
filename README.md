@@ -39,6 +39,7 @@ Wanna build a GNOME extension with OpenRGB support? **[The implementation of the
 
 - GNOME Shell 45+ 
 - OpenRGB server running and accessible, preferable with `--mode direct` flag
+- Node.js 20+ and pnpm for building from source
 
 ### Building from Source
 
@@ -47,17 +48,26 @@ Wanna build a GNOME extension with OpenRGB support? **[The implementation of the
 git clone https://github.com/evertonstz/openrgb-sync-accent-color.git
 cd openrgb-sync-accent-color
 
+# Install dependencies
+pnpm install
+
 # Build the extension
-make all
+pnpm run build:all
 
 # Install locally
-make install
+pnpm run install
 
 # Package for distribution
-make pack
+pnpm run pack
 
 # Run unit and integration tests
-make test
+pnpm test
+
+# Development workflow (lint + test + build)
+pnpm run dev
+
+# Lint and format code
+pnpm run check:fix
 ```
 
 ## OpenRGB Setup
