@@ -30,13 +30,25 @@
     "@girs/gnome-shell": "^48.0.2"
   },
   "scripts": {
+    "build": "tsc",
+    "build:schemas": "glib-compile-schemas schemas",
+    "build:all": "pnpm run build && pnpm run build:schemas",
+    "pack": "pnpm run build:all && pnpm run pack:copy && pnpm run pack:zip",
+    "pack:copy": "cp -r schemas dist/ && cp metadata.json dist/",
+    "pack:zip": "cd dist && zip ../openrgb-sync-accent-color.zip -9r .",
+    "install": "pnpm run pack && pnpm run install:copy",
+    "install:copy": "rm -rf ~/.local/share/gnome-shell/extensions/openrgb-sync-accent-color@evertonstz.github.io && mkdir -p ~/.local/share/gnome-shell/extensions && cp -r dist ~/.local/share/gnome-shell/extensions/openrgb-sync-accent-color@evertonstz.github.io",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:watch": "vitest",
+    "test:silent": "vitest run --silent",
     "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
+    "lint:fix": "biome lint . --write",
     "format": "biome format .",
-    "format:fix": "biome format --write .",
+    "format:fix": "biome format . --write",
     "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "check:fix": "biome check . --write",
+    "dev": "pnpm run check && pnpm run test:run && pnpm run build:all",
+    "clean": "rm -rf dist node_modules openrgb-sync-accent-color.zip"
   }
 }
