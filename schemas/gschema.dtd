@@ -1,0 +1,30 @@
+<!ELEMENT schemalist (schema+)>
+
+<!ELEMENT schema (key+)>
+<!ATTLIST schema
+    id CDATA #REQUIRED
+    path CDATA #IMPLIED
+    gettext-domain CDATA #IMPLIED>
+
+<!ELEMENT key ((default | summary | description | range | choices)*)>
+<!ATTLIST key
+    name CDATA #REQUIRED
+    type CDATA #REQUIRED
+    enum CDATA #IMPLIED>
+
+<!ELEMENT default (#PCDATA)>
+
+<!ELEMENT summary (#PCDATA)>
+
+<!ELEMENT description (#PCDATA)>
+
+<!ELEMENT range EMPTY>
+<!ATTLIST range
+    min CDATA #IMPLIED
+    max CDATA #IMPLIED>
+
+<!ELEMENT choices (choice+)>
+
+<!ELEMENT choice EMPTY>
+<!ATTLIST choice
+    value CDATA #REQUIRED>

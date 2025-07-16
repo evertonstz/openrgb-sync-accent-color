@@ -1,0 +1,133 @@
+name: Validate XML Schemas
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'schemas/**/*.xml'
+      - 'schemas/**/*.dtd'
+  pull_request:
+    paths:
+      - 'schemas/**/*.xml'
+      - 'schemas/**/*.dtd'
+
+jobs:
+  validate-xml:
+    name: Validate XML Schema Files
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install XML validation tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libxml2-utils libglib2.0-dev-bin
+        
+    - name: Validate XML well-formedness
+      run: |
+        echo "::group::Checking XML well-formedness"
+        for file in schemas/*.xml; do
+          if [ -f "$file" ]; then
+            echo "Validating well-formedness: $file"
+            xmllint --noout "$file"
+          fi
+        done
+        echo "::endgroup::"
+        
+    - name: Validate against DTD
+      run: |
+        echo "::group::Validating against DTD"
+        cd schemas
+        for file in *.xml; do
+          if [ -f "$file" ]; then
+            echo "Validating against DTD: $file"
+            xmllint --valid --noout "$file"
+          fi
+        done
+        echo "::endgroup::"
+        
+    - name: Format and check XML structure
+      run: |
+        echo "::group::Checking XML formatting"
+        cd schemas
+        for file in *.xml; do
+          if [ -f "$file" ]; then
+            echo "Checking format: $file"
+            xmllint --format "$file" > /tmp/formatted.xml
+            if ! diff -q "$file" /tmp/formatted.xml > /dev/null; then
+              echo "::warning file=$file::File is not properly formatted"
+              echo "Expected format:"
+              xmllint --format "$file"
+            else
+              echo "✅ $file is properly formatted"
+            fi
+          fi
+        done
+        echo "::endgroup::"
+        
+    - name: Validate GSettings schemas
+      run: |
+        echo "::group::Validating GSettings schemas"
+        cd schemas
+        # Test compilation without installing
+        glib-compile-schemas --dry-run .
+        echo "✅ GSettings schema validation passed"
+        echo "::endgroup::"
+        
+    - name: Check schema structure
+      run: |
+        echo "::group::Analyzing schema structure"
+        cd schemas
+        for file in *.xml; do
+          if [ -f "$file" ]; then
+            echo "Analyzing structure of: $file"
+            
+            # Count elements
+            schemas=$(xmllint --xpath "count(//schema)" "$file")
+            keys=$(xmllint --xpath "count(//key)" "$file")
+            
+            echo "  📊 Schemas: $schemas"
+            echo "  🔑 Keys: $keys"
+            
+            # List all keys with their types
+            echo "  📋 Key definitions:"
+            xmllint --xpath "//key/@name | //key/@type" "$file" 2>/dev/null | \
+              sed 's/name="/  - /g; s/" type="/ (type: /g; s/"$/)/g' || true
+          fi
+        done
+        echo "::endgroup::"
+
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Check for XML security issues
+      run: |
+        echo "::group::Security checks"
+        cd schemas
+        
+        for file in *.xml *.dtd; do
+          if [ -f "$file" ]; then
+            echo "Checking $file for security issues..."
+            
+            # Check for external entity references
+            if grep -q "ENTITY.*SYSTEM\|ENTITY.*PUBLIC" "$file"; then
+              echo "::error file=$file::External entity references found - potential security risk"
+              exit 1
+            fi
+            
+            # Check for suspicious patterns
+            if grep -qi "javascript:\|data:\|file:\|ftp:" "$file"; then
+              echo "::warning file=$file::Suspicious URL schemes found"
+            fi
+            
+            echo "✅ $file passed security checks"
+          fi
+        done
+        echo "::endgroup::"
