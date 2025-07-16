@@ -2,6 +2,7 @@ name: Validate XML Schemas
 
 on:
   push:
+    branches: [ main ]
     paths:
       - 'schemas/**/*.xml'
       - 'schemas/**/*.dtd'
