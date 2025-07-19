@@ -172,14 +172,22 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       visible: enableOpacityRow.active,
     });
 
-    // Create opacity adjustment
+    const storedOpacity = settings.get_double('night-light-opacity');
+    const calculatedValue = storedOpacity * 100;
+    
+    console.log(`OpenRGB Prefs: Raw stored opacity: ${storedOpacity}`);
+    console.log(`OpenRGB Prefs: Calculated slider value: ${calculatedValue}`);
+    
     const opacityAdjustment = new Gtk.Adjustment({
-      value: settings.get_double('night-light-opacity') * 100,
+      value: calculatedValue,
       lower: 0,
       upper: 100,
       step_increment: 1,
       page_increment: 10,
     });
+
+    console.log(`OpenRGB Prefs: Adjustment created with value: ${opacityAdjustment.value}`);
+    console.log(`OpenRGB Prefs: Adjustment properties - lower: ${opacityAdjustment.lower}, upper: ${opacityAdjustment.upper}`);
 
     const opacityScale = new Gtk.Scale({
       orientation: Gtk.Orientation.HORIZONTAL,
@@ -198,7 +206,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     opacityAdjustment.connect('value-changed', () => {
       const percentage = opacityAdjustment.value;
       const opacity = percentage / 100; // Convert to 0.0-1.0 range
+      console.log(`OpenRGB Prefs: Slider changed to ${percentage}%, saving opacity ${opacity}`);
       settings.set_double('night-light-opacity', opacity);
+      console.log(`OpenRGB Prefs: Verification - settings now contains: ${settings.get_double('night-light-opacity')}`);
     });
 
     opacityRow.add_suffix(opacityScale);
