@@ -153,7 +153,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
   private _createNightLightGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
     const nightLightGroup = new Adw.PreferencesGroup({
       title: _('Night Light Integration'),
-      description: _('Automatically adjust RGB lighting brightness when GNOME Night Light is active.'),
+      description: _(
+        'Automatically adjust RGB lighting brightness when GNOME Night Light is active.',
+      ),
     });
 
     const enableOpacityRow = new Adw.SwitchRow({
@@ -174,10 +176,10 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     const storedOpacity = settings.get_double('night-light-opacity');
     const calculatedValue = storedOpacity * 100;
-    
+
     console.log(`OpenRGB Prefs: Raw stored opacity: ${storedOpacity}`);
     console.log(`OpenRGB Prefs: Calculated slider value: ${calculatedValue}`);
-    
+
     const opacityAdjustment = new Gtk.Adjustment({
       value: calculatedValue,
       lower: 0,
@@ -187,7 +189,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     });
 
     console.log(`OpenRGB Prefs: Adjustment created with value: ${opacityAdjustment.value}`);
-    console.log(`OpenRGB Prefs: Adjustment properties - lower: ${opacityAdjustment.lower}, upper: ${opacityAdjustment.upper}`);
+    console.log(
+      `OpenRGB Prefs: Adjustment properties - lower: ${opacityAdjustment.lower}, upper: ${opacityAdjustment.upper}`,
+    );
 
     const opacityScale = new Gtk.Scale({
       orientation: Gtk.Orientation.HORIZONTAL,
@@ -208,7 +212,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       const opacity = percentage / 100; // Convert to 0.0-1.0 range
       console.log(`OpenRGB Prefs: Slider changed to ${percentage}%, saving opacity ${opacity}`);
       settings.set_double('night-light-opacity', opacity);
-      console.log(`OpenRGB Prefs: Verification - settings now contains: ${settings.get_double('night-light-opacity')}`);
+      console.log(
+        `OpenRGB Prefs: Verification - settings now contains: ${settings.get_double('night-light-opacity')}`,
+      );
     });
 
     opacityRow.add_suffix(opacityScale);
