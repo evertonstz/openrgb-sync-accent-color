@@ -196,7 +196,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     });
 
     // Set the actual value after the adjustment and scale are created
-    console.log(`OpenRGB Prefs: Setting slider to stored opacity: ${storedOpacity} (${storedOpacity * 100}%)`);
+    console.log(
+      `OpenRGB Prefs: Setting slider to stored opacity: ${storedOpacity} (${storedOpacity * 100}%)`,
+    );
     opacityAdjustment.value = storedOpacity * 100;
     console.log(`OpenRGB Prefs: Adjustment value after setting: ${opacityAdjustment.value}`);
 
