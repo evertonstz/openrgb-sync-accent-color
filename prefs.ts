@@ -31,6 +31,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     this._createConnectionGroup(mainPage, settings);
     this._createSyncGroup(mainPage, settings);
+    this._createNightLightGroup(mainPage, settings);
     this._createAboutGroup(mainPage);
     this._createDevicesGroup(devicesPage, settings);
 
@@ -139,6 +140,64 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     syncGroup.add(delayRow);
     syncGroup.add(directModeRow);
     page.add(syncGroup);
+  }
+
+  private _createNightLightGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
+    const nightLightGroup = new Adw.PreferencesGroup({
+      title: _('Night Light'),
+      description: _('Control RGB lighting behavior when GNOME Night Light is active.'),
+    });
+
+    const enableOpacityRow = new Adw.SwitchRow({
+      title: _('Night Light Opacity'),
+      subtitle: _('Adjust RGB brightness when Night Light is active'),
+      active: settings.get_boolean('night-light-disable-lights'),
+    });
+    enableOpacityRow.connect('notify::active', () => {
+      settings.set_boolean('night-light-disable-lights', enableOpacityRow.active);
+      opacityRow.visible = enableOpacityRow.active;
+    });
+
+    const opacityRow = new Adw.ActionRow({
+      title: _('Opacity Level'),
+      subtitle: _('0% = lights off, 100% = full brightness'),
+      visible: enableOpacityRow.active,
+    });
+
+    // Create opacity adjustment
+    const opacityAdjustment = new Gtk.Adjustment({
+      value: settings.get_double('night-light-opacity') * 100,
+      lower: 0,
+      upper: 100,
+      step_increment: 1,
+      page_increment: 10,
+    });
+
+    const opacityScale = new Gtk.Scale({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      adjustment: opacityAdjustment,
+      digits: 0, // No decimal places
+      hexpand: true,
+      valign: Gtk.Align.CENTER,
+    });
+
+    opacityScale.add_mark(0, Gtk.PositionType.BOTTOM, '0%');
+    opacityScale.add_mark(25, Gtk.PositionType.BOTTOM, '25%');
+    opacityScale.add_mark(50, Gtk.PositionType.BOTTOM, '50%');
+    opacityScale.add_mark(75, Gtk.PositionType.BOTTOM, '75%');
+    opacityScale.add_mark(100, Gtk.PositionType.BOTTOM, '100%');
+
+    opacityAdjustment.connect('value-changed', () => {
+      const percentage = opacityAdjustment.value;
+      const opacity = percentage / 100; // Convert to 0.0-1.0 range
+      settings.set_double('night-light-opacity', opacity);
+    });
+
+    opacityRow.add_suffix(opacityScale);
+
+    nightLightGroup.add(enableOpacityRow);
+    nightLightGroup.add(opacityRow);
+    page.add(nightLightGroup);
   }
 
   private _createAboutGroup(page: Adw.PreferencesPage): void {
