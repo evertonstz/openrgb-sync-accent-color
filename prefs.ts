@@ -24,6 +24,11 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       icon_name: 'applications-graphics-symbolic',
     });
 
+    const appearancePage = new Adw.PreferencesPage({
+      title: _('Appearance'),
+      icon_name: 'video-display-symbolic',
+    });
+
     const devicesPage = new Adw.PreferencesPage({
       title: _('Devices'),
       icon_name: 'computer-symbolic',
@@ -32,9 +37,13 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     this._createConnectionGroup(mainPage, settings);
     this._createSyncGroup(mainPage, settings);
     this._createAboutGroup(mainPage);
+
+    this._createNightLightGroup(appearancePage, settings);
+
     this._createDevicesGroup(devicesPage, settings);
 
     window.add(mainPage);
+    window.add(appearancePage);
     window.add(devicesPage);
 
     return Promise.resolve();
@@ -139,6 +148,80 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     syncGroup.add(delayRow);
     syncGroup.add(directModeRow);
     page.add(syncGroup);
+  }
+
+  private _createNightLightGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
+    const nightLightGroup = new Adw.PreferencesGroup({
+      title: _('Night Light Integration'),
+      description: _(
+        'Automatically adjust RGB lighting brightness when GNOME Night Light is active.',
+      ),
+    });
+
+    const enableOpacityRow = new Adw.SwitchRow({
+      title: _('Night Light Opacity'),
+      subtitle: _('Adjust RGB brightness when Night Light is active'),
+      active: settings.get_boolean('night-light-disable-lights'),
+    });
+    enableOpacityRow.connect('notify::active', () => {
+      settings.set_boolean('night-light-disable-lights', enableOpacityRow.active);
+      opacityRow.visible = enableOpacityRow.active;
+    });
+
+    const opacityRow = new Adw.ActionRow({
+      title: _('Opacity Level'),
+      subtitle: _('0% = lights off, 100% = full brightness'),
+      visible: enableOpacityRow.active,
+    });
+
+    const storedOpacity = settings.get_double('night-light-opacity');
+    const calculatedValue = storedOpacity * 100;
+
+    console.log(`OpenRGB Prefs: Raw stored opacity: ${storedOpacity}`);
+    console.log(`OpenRGB Prefs: Calculated slider value: ${calculatedValue}`);
+
+    const opacityAdjustment = new Gtk.Adjustment({
+      value: calculatedValue,
+      lower: 0,
+      upper: 100,
+      step_increment: 1,
+      page_increment: 10,
+    });
+
+    console.log(`OpenRGB Prefs: Adjustment created with value: ${opacityAdjustment.value}`);
+    console.log(
+      `OpenRGB Prefs: Adjustment properties - lower: ${opacityAdjustment.lower}, upper: ${opacityAdjustment.upper}`,
+    );
+
+    const opacityScale = new Gtk.Scale({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      adjustment: opacityAdjustment,
+      digits: 0, // No decimal places
+      hexpand: true,
+      valign: Gtk.Align.CENTER,
+    });
+
+    opacityScale.add_mark(0, Gtk.PositionType.BOTTOM, '0%');
+    opacityScale.add_mark(25, Gtk.PositionType.BOTTOM, '25%');
+    opacityScale.add_mark(50, Gtk.PositionType.BOTTOM, '50%');
+    opacityScale.add_mark(75, Gtk.PositionType.BOTTOM, '75%');
+    opacityScale.add_mark(100, Gtk.PositionType.BOTTOM, '100%');
+
+    opacityAdjustment.connect('value-changed', () => {
+      const percentage = opacityAdjustment.value;
+      const opacity = percentage / 100; // Convert to 0.0-1.0 range
+      console.log(`OpenRGB Prefs: Slider changed to ${percentage}%, saving opacity ${opacity}`);
+      settings.set_double('night-light-opacity', opacity);
+      console.log(
+        `OpenRGB Prefs: Verification - settings now contains: ${settings.get_double('night-light-opacity')}`,
+      );
+    });
+
+    opacityRow.add_suffix(opacityScale);
+
+    nightLightGroup.add(enableOpacityRow);
+    nightLightGroup.add(opacityRow);
+    page.add(nightLightGroup);
   }
 
   private _createAboutGroup(page: Adw.PreferencesPage): void {

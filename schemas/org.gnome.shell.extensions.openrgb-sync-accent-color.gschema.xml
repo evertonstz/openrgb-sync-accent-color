@@ -34,5 +34,16 @@
             <summary>Set Direct Mode on Every Update</summary>
             <description>If enabled, set devices to direct mode before every color update (may be needed for some devices that change modes)</description>
         </key>
+        <key name="night-light-disable-lights" type="b">
+            <default>false</default>
+            <summary>Night Light Opacity</summary>
+            <description>Enable opacity adjustment when Night Light is active</description>
+        </key>
+        <key name="night-light-opacity" type="d">
+            <default>0.0</default>
+            <range min="0.0" max="1.0"/>
+            <summary>Night Light Opacity Level</summary>
+            <description>Opacity level (0.0 = off, 1.0 = full brightness) when Night Light is active</description>
+        </key>
     </schema>
 </schemalist>
