@@ -26,7 +26,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     const appearancePage = new Adw.PreferencesPage({
       title: _('Appearance'),
-      icon_name: 'applications-design-symbolic',
+      icon_name: 'video-display-symbolic',
     });
 
     const devicesPage = new Adw.PreferencesPage({
