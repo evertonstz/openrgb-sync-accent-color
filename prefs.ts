@@ -24,6 +24,11 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       icon_name: 'applications-graphics-symbolic',
     });
 
+    const appearancePage = new Adw.PreferencesPage({
+      title: _('Appearance'),
+      icon_name: 'applications-design-symbolic',
+    });
+
     const devicesPage = new Adw.PreferencesPage({
       title: _('Devices'),
       icon_name: 'computer-symbolic',
@@ -31,11 +36,14 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     this._createConnectionGroup(mainPage, settings);
     this._createSyncGroup(mainPage, settings);
-    this._createNightLightGroup(mainPage, settings);
     this._createAboutGroup(mainPage);
+
+    this._createNightLightGroup(appearancePage, settings);
+
     this._createDevicesGroup(devicesPage, settings);
 
     window.add(mainPage);
+    window.add(appearancePage);
     window.add(devicesPage);
 
     return Promise.resolve();
@@ -144,8 +152,8 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
   private _createNightLightGroup(page: Adw.PreferencesPage, settings: Gio.Settings): void {
     const nightLightGroup = new Adw.PreferencesGroup({
-      title: _('Night Light'),
-      description: _('Control RGB lighting behavior when GNOME Night Light is active.'),
+      title: _('Night Light Integration'),
+      description: _('Automatically adjust RGB lighting brightness when GNOME Night Light is active.'),
     });
 
     const enableOpacityRow = new Adw.SwitchRow({
