@@ -49,7 +49,7 @@ export default class OpenRGBAccentSyncExtension
   public syncInProgress: boolean = false;
 
   // Night light state
-  public nightLightSettings: Gio.Settings | null = null;
+  public nightLightDBusProxy: Gio.DBusProxy | null = null;
   public isNightLightActive: boolean = false;
 
   public override enable(): void {
@@ -71,7 +71,9 @@ export default class OpenRGBAccentSyncExtension
 
     this.initializeOpenRGB();
     this.monitorAccentColor();
-    this.initializeNightLightMonitoring();
+    this.initializeNightLightMonitoring().catch((error) => {
+      console.error('OpenRGB Accent Sync: Failed to initialize night light monitoring:', error);
+    });
   }
 
   public override disable(): void {
@@ -112,14 +114,18 @@ export default class OpenRGBAccentSyncExtension
       }
     }
 
-    if (this.nightLightSignal && this.nightLightSettings) {
+    if (this.nightLightSignal) {
       try {
         console.log(
           `OpenRGB Accent Sync: Disconnecting night light signal ID: ${this.nightLightSignal}`,
         );
-        this.nightLightSettings.disconnect(this.nightLightSignal);
+
+        if (this.nightLightDBusProxy) {
+          this.nightLightDBusProxy.disconnect(this.nightLightSignal);
+          this.nightLightDBusProxy = null;
+        }
+
         this.nightLightSignal = null;
-        this.nightLightSettings = null;
         console.log('OpenRGB Accent Sync: Night light signal disconnected successfully');
       } catch (error: unknown) {
         console.warn(
@@ -523,22 +529,56 @@ export default class OpenRGBAccentSyncExtension
     }
   }
 
-  public initializeNightLightMonitoring(): void {
+  public async initializeNightLightMonitoring(): Promise<void> {
     try {
       console.log('OpenRGB Accent Sync: Initializing night light monitoring');
 
-      this.nightLightSettings = new Gio.Settings({
-        schema_id: 'org.gnome.settings-daemon.plugins.color',
+      this.nightLightDBusProxy = await new Promise<Gio.DBusProxy>((resolve, reject) => {
+        Gio.DBusProxy.new_for_bus(
+          Gio.BusType.SESSION,
+          Gio.DBusProxyFlags.NONE,
+          null,
+          'org.gnome.SettingsDaemon.Color',
+          '/org/gnome/SettingsDaemon/Color',
+          'org.gnome.SettingsDaemon.Color',
+          null,
+          (_source, result) => {
+            try {
+              const proxy = Gio.DBusProxy.new_for_bus_finish(result);
+              resolve(proxy);
+            } catch (error) {
+              reject(error);
+            }
+          },
+        );
       });
 
-      this.isNightLightActive = this.nightLightSettings.get_boolean('night-light-enabled');
-      console.log(`OpenRGB Accent Sync: Initial night light state: ${this.isNightLightActive}`);
+      const nightLightActiveVariant =
+        this.nightLightDBusProxy.get_cached_property('NightLightActive');
+      this.isNightLightActive = nightLightActiveVariant
+        ? nightLightActiveVariant.get_boolean()
+        : false;
+      console.log(
+        `OpenRGB Accent Sync: Initial D-Bus night light active state: ${this.isNightLightActive}`,
+      );
 
-      this.nightLightSignal = this.nightLightSettings.connect(
-        'changed::night-light-enabled',
-        () => {
-          this.handleNightLightStateChange();
+      this.nightLightSignal = this.nightLightDBusProxy.connect(
+        'g-properties-changed',
+        (_proxy, properties) => {
+          const nightLightActiveChanged = properties.lookup_value('NightLightActive', null);
+          if (nightLightActiveChanged) {
+            const newState = nightLightActiveChanged.get_boolean();
+            console.log(
+              `OpenRGB Accent Sync: D-Bus Night Light active state changed: ${this.isNightLightActive} -> ${newState}`,
+            );
+            this.isNightLightActive = newState;
+            this.handleNightLightStateChange();
+          }
         },
+      );
+
+      console.log(
+        `OpenRGB Accent Sync: D-Bus night light monitoring initialized with signal ID: ${this.nightLightSignal}`,
       );
 
       if (this.settings) {
@@ -560,10 +600,6 @@ export default class OpenRGBAccentSyncExtension
         this.checkInitialNightLightState();
         return GLib.SOURCE_REMOVE;
       }, 1000); // Small delay to ensure all systems are initialized
-
-      console.log(
-        `OpenRGB Accent Sync: Night light monitoring initialized with signal ID: ${this.nightLightSignal}`,
-      );
     } catch (error: unknown) {
       console.error(
         'OpenRGB Accent Sync: Failed to initialize night light monitoring:',
@@ -573,7 +609,7 @@ export default class OpenRGBAccentSyncExtension
   }
 
   public checkInitialNightLightState(): void {
-    if (!this.nightLightSettings || !this.settings) {
+    if (!this.settings) {
       return;
     }
 
@@ -585,12 +621,11 @@ export default class OpenRGBAccentSyncExtension
       return;
     }
 
-    const isNightLightActive = this.nightLightSettings.get_boolean('night-light-enabled');
     console.log(
-      `OpenRGB Accent Sync: Checking initial night light state - Feature enabled: ${isNightLightFeatureEnabled}, Night light active: ${isNightLightActive}`,
+      `OpenRGB Accent Sync: Checking initial night light state - Feature enabled: ${isNightLightFeatureEnabled}, Night light active: ${this.isNightLightActive}`,
     );
 
-    if (isNightLightActive) {
+    if (this.isNightLightActive) {
       const opacity = this.settings.get_double('night-light-opacity');
       console.log(
         `OpenRGB Accent Sync: Night light is active on startup with opacity ${opacity}, applying to current colors`,
@@ -603,30 +638,26 @@ export default class OpenRGBAccentSyncExtension
   }
 
   public handleNightLightStateChange(): void {
-    if (!this.nightLightSettings || !this.settings) {
+    if (!this.settings) {
       return;
     }
 
     const isNightLightFeatureEnabled = this.settings.get_boolean('night-light-disable-lights');
-    const isNightLightActive = this.nightLightSettings.get_boolean('night-light-enabled');
 
     console.log(
-      `OpenRGB Accent Sync: Night light state checked - Feature enabled: ${isNightLightFeatureEnabled}, Night light active: ${isNightLightActive}`,
+      `OpenRGB Accent Sync: Night light state checked - Feature enabled: ${isNightLightFeatureEnabled}, Night light active: ${this.isNightLightActive}`,
     );
 
-    const previousState = this.isNightLightActive;
-    this.isNightLightActive = isNightLightActive;
-
-    const nightLightStateChanged = this.isNightLightActive !== previousState;
     const needsColorUpdate =
-      nightLightStateChanged || // Night Light state changed
-      (isNightLightFeatureEnabled && isNightLightActive) || // Feature enabled + Night Light active (includes opacity changes)
+      (isNightLightFeatureEnabled && // Feature is enabled, and either:
+        (this.isNightLightActive || // Night Light is active (apply opacity), or
+          !this.isNightLightActive)) || // Night Light was deactivated (restore normal colors), or
       !isNightLightFeatureEnabled; // Feature disabled (restore normal colors)
 
     if (needsColorUpdate) {
       if (!isNightLightFeatureEnabled) {
         console.log('OpenRGB Accent Sync: Night light feature disabled, restoring normal colors');
-      } else if (isNightLightActive) {
+      } else if (this.isNightLightActive) {
         const opacity = this.settings.get_double('night-light-opacity');
         console.log(
           `OpenRGB Accent Sync: Night light is active with opacity ${opacity} (read from settings store), updating colors`,
@@ -642,19 +673,18 @@ export default class OpenRGBAccentSyncExtension
   }
 
   public applyNightLightOpacity(color: RGBColor): RGBColor | null {
-    if (!this.settings || !this.nightLightSettings) {
+    if (!this.settings) {
       console.log('OpenRGB Accent Sync: Night light opacity check - Settings not available');
       return null;
     }
 
     const isNightLightFeatureEnabled = this.settings.get_boolean('night-light-disable-lights');
-    const isNightLightActive = this.nightLightSettings.get_boolean('night-light-enabled');
 
     console.log(
-      `OpenRGB Accent Sync: Night light opacity check - Feature enabled: ${isNightLightFeatureEnabled}, Night light active: ${isNightLightActive}`,
+      `OpenRGB Accent Sync: Night light opacity check - Feature enabled: ${isNightLightFeatureEnabled}, Night light active: ${this.isNightLightActive}`,
     );
 
-    if (!isNightLightFeatureEnabled || !isNightLightActive) {
+    if (!isNightLightFeatureEnabled || !this.isNightLightActive) {
       return null; // No modification needed
     }
 
@@ -679,13 +709,12 @@ export default class OpenRGBAccentSyncExtension
   }
 
   public shouldApplyNightLightOverride(): boolean {
-    if (!this.settings || !this.nightLightSettings) {
+    if (!this.settings) {
       return false;
     }
 
     const isNightLightFeatureEnabled = this.settings.get_boolean('night-light-disable-lights');
-    const isNightLightActive = this.nightLightSettings.get_boolean('night-light-enabled');
 
-    return isNightLightFeatureEnabled && isNightLightActive;
+    return isNightLightFeatureEnabled && this.isNightLightActive;
   }
 }
