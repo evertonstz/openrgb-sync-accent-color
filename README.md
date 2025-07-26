@@ -84,7 +84,8 @@ Description=OpenRGB server mode
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/openrgb --server --server-host 127.0.0.1 --server-port 6742 --mode direct --color FFFFFF --brightness 100
+ExecStartPre=/usr/bin/udevadm settle
+ExecStart=/usr/bin/openrgb --server --server-host 127.0.0.1 --server-port 6742 --mode direct --col>
 ExecStop=/usr/bin/openrgb --client 127.0.0.1:6742 --mode direct --color 000000 --brightness 0
 Restart=on-failure
 Environment=DISPLAY=:0
