@@ -540,6 +540,13 @@ export default class OpenRGBAccentSyncExtension
 
       const smoothTransitionEnabled = (() => {
         if (!this.settings) return false;
+        
+        // Force disable smooth transitions when direct mode is enabled
+        if (setDirectModeOnUpdate) {
+          console.log('OpenRGB Accent Sync: Smooth transition disabled due to direct mode setting');
+          return false;
+        }
+        
         try {
           // @ts-ignore access schema if exists
           const hasKey = (this.settings as any).settings_schema?.has_key?.(

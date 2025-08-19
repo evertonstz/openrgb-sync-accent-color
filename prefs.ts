@@ -142,12 +142,22 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
     });
     directModeRow.connect('notify::active', () => {
       settings.set_boolean('set-direct-mode-on-update', directModeRow.active);
+      // Update smooth transition row sensitivity based on direct mode
+      if (hasSmoothTransitionKey && smoothTransitionRow) {
+        smoothTransitionRow.sensitive = !directModeRow.active;
+        if (directModeRow.active) {
+          smoothTransitionRow.subtitle = _('Disabled when "Set Direct Mode on Every Update" is enabled');
+        } else {
+          smoothTransitionRow.subtitle = _('Interpolate color changes smoothly over 3 seconds');
+        }
+      }
     });
 
     // Show only if schema key exists to avoid runtime errors when schema isn't rebuilt yet
     const hasSmoothTransitionKey = (settings as any).settings_schema?.has_key?.(
       'smooth-transition-enabled',
     );
+    let smoothTransitionRow: Adw.SwitchRow | null = null;
     if (hasSmoothTransitionKey) {
       let smoothActive = false;
       try {
@@ -156,14 +166,19 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         smoothActive = false;
       }
 
-      const smoothTransitionRow = new Adw.SwitchRow({
+      const directModeEnabled = settings.get_boolean('set-direct-mode-on-update');
+
+      smoothTransitionRow = new Adw.SwitchRow({
         title: _('Smooth Color Transition'),
-        subtitle: _('Interpolate color changes smoothly over 3 seconds'),
+        subtitle: directModeEnabled 
+          ? _('Disabled when "Set Direct Mode on Every Update" is enabled')
+          : _('Interpolate color changes smoothly over 3 seconds'),
         active: smoothActive,
+        sensitive: !directModeEnabled,
       });
       smoothTransitionRow.connect('notify::active', () => {
         try {
-          settings.set_boolean('smooth-transition-enabled', smoothTransitionRow.active);
+          settings.set_boolean('smooth-transition-enabled', smoothTransitionRow!.active);
         } catch (_) {
           // Ignore if schema not available
         }
