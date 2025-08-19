@@ -102,6 +102,10 @@ export interface IOpenRGBAccentSyncExtension {
   // Sync state
   syncInProgress: boolean;
 
+  // Color change queue
+  colorChangeQueue: RGBColor[];
+  isProcessingQueue: boolean;
+
   // Core methods
   enable(): void;
   disable(): void;

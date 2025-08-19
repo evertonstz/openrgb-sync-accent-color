@@ -49,6 +49,10 @@ export default class OpenRGBAccentSyncExtension
   // Sync state
   public syncInProgress: boolean = false;
 
+  // Color change queue
+  public colorChangeQueue: RGBColor[] = [];
+  public isProcessingQueue: boolean = false;
+
   // Night light state
   public nightLightDBusProxy: Gio.DBusProxy | null = null;
   public isNightLightActive: boolean = false;
@@ -143,7 +147,9 @@ export default class OpenRGBAccentSyncExtension
 
     this.settings = null;
     this.lastKnownColor = null;
-  this.lastAppliedDeviceColor = null;
+    this.lastAppliedDeviceColor = null;
+    this.colorChangeQueue = [];
+    this.isProcessingQueue = false;
 
     if (this.reconnectionTimer) {
       GLib.source_remove(this.reconnectionTimer);
@@ -409,6 +415,50 @@ export default class OpenRGBAccentSyncExtension
       `OpenRGB Accent Sync: syncAccentColor called with RGB(${color.r}, ${color.g}, ${color.b})`,
     );
 
+    this.colorChangeQueue.push(color);
+    console.log(`OpenRGB Accent Sync: Added color to queue, queue length: ${this.colorChangeQueue.length}`);
+
+    if (!this.isProcessingQueue) {
+      this.processColorQueue();
+    }
+  }
+
+  private async processColorQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.colorChangeQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    console.log('OpenRGB Accent Sync: Starting queue processing');
+
+    try {
+      while (this.colorChangeQueue.length > 0) {
+        const targetColor = this.colorChangeQueue.pop()!;
+        this.colorChangeQueue = [];
+        
+        console.log(
+          `OpenRGB Accent Sync: Processing color RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`,
+        );
+
+        await this.applyColorChange(targetColor);
+      }
+    } catch (error: unknown) {
+      console.error('OpenRGB Accent Sync: Error processing color queue:', error);
+    } finally {
+      this.isProcessingQueue = false;
+      console.log('OpenRGB Accent Sync: Queue processing completed');
+      
+      if (this.colorChangeQueue.length > 0) {
+        console.log('OpenRGB Accent Sync: New colors added during processing, restarting queue');
+        this.addTimeout(() => {
+          this.processColorQueue();
+          return GLib.SOURCE_REMOVE;
+        }, 100);
+      }
+    }
+  }
+
+  private async applyColorChange(color: RGBColor): Promise<void> {
     if (this.syncInProgress) {
       console.log('OpenRGB Accent Sync: Sync already in progress, skipping duplicate call');
       return;
@@ -454,7 +504,7 @@ export default class OpenRGBAccentSyncExtension
         );
       }
 
-  console.log(`OpenRGB Accent Sync: Preparing device color update...`);
+      console.log(`OpenRGB Accent Sync: Preparing device color update...`);
       if (!this.openrgbClient) {
         throw new Error('OpenRGB client not available');
       }
@@ -502,7 +552,7 @@ export default class OpenRGBAccentSyncExtension
         }
       })();
 
-  if (!smoothTransitionEnabled) {
+      if (!smoothTransitionEnabled) {
         console.log(`OpenRGB Accent Sync: Smooth transition disabled, applying instantly`);
         const results = await this.openrgbClient.setDevicesColor(
           devicesToSync,
@@ -641,10 +691,7 @@ export default class OpenRGBAccentSyncExtension
 
       this.startReconnectionTimer();
     } finally {
-      this.addTimeout(() => {
-        this.syncInProgress = false;
-        return GLib.SOURCE_REMOVE;
-      }, 1000);
+      this.syncInProgress = false;
     }
   }
 
