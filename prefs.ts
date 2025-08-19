@@ -144,9 +144,36 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       settings.set_boolean('set-direct-mode-on-update', directModeRow.active);
     });
 
+    // Show only if schema key exists to avoid runtime errors when schema isn't rebuilt yet
+    const hasSmoothTransitionKey = (settings as any).settings_schema?.has_key?.(
+      'smooth-transition-enabled',
+    );
+    if (hasSmoothTransitionKey) {
+      let smoothActive = false;
+      try {
+        smoothActive = settings.get_boolean('smooth-transition-enabled');
+      } catch {
+        smoothActive = false;
+      }
+
+      const smoothTransitionRow = new Adw.SwitchRow({
+        title: _('Smooth Color Transition'),
+        subtitle: _('Interpolate color changes smoothly over 3 seconds'),
+        active: smoothActive,
+      });
+      smoothTransitionRow.connect('notify::active', () => {
+        try {
+          settings.set_boolean('smooth-transition-enabled', smoothTransitionRow.active);
+        } catch (_) {
+          // Ignore if schema not available
+        }
+      });
+      syncGroup.add(smoothTransitionRow);
+    }
+
     syncGroup.add(enabledRow);
     syncGroup.add(delayRow);
-    syncGroup.add(directModeRow);
+  syncGroup.add(directModeRow);
     page.add(syncGroup);
   }
 

@@ -45,5 +45,10 @@
             <summary>Night Light Opacity Level</summary>
             <description>Opacity level (0.0 = off, 1.0 = full brightness) when Night Light is active</description>
         </key>
+        <key name="smooth-transition-enabled" type="b">
+            <default>true</default>
+            <summary>Enable Smooth Color Transition</summary>
+            <description>If enabled, interpolate color changes smoothly over 3 seconds instead of changing instantly</description>
+        </key>
     </schema>
 </schemalist>
