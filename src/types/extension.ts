@@ -38,6 +38,7 @@ export interface ExtensionSettings {
   'sync-enabled': boolean;
   'sync-delay': number;
   'ignored-devices': string[]; // Array of JSON-serialized Device objects
+  'smooth-transition-enabled'?: boolean;
 }
 
 /**
@@ -82,6 +83,7 @@ export interface IOpenRGBAccentSyncExtension {
   openrgbClient: OpenRGBClient | null;
   settings: Gio.Settings | null;
   lastKnownColor: RGBColor | null;
+  lastAppliedDeviceColor?: RGBColor | null;
 
   // Signal management
   accentColorSignal: SignalId | null;
@@ -99,6 +101,10 @@ export interface IOpenRGBAccentSyncExtension {
 
   // Sync state
   syncInProgress: boolean;
+
+  // Color change queue
+  colorChangeQueue: RGBColor[];
+  isProcessingQueue: boolean;
 
   // Core methods
   enable(): void;
@@ -183,11 +189,16 @@ export const ExtensionConstants = {
   POST_SYNC_CLEANUP_DELAY: 1000,
   INITIAL_MONITOR_DELAY: 2000,
 
+  // Color transition
+  SMOOTH_TRANSITION_DURATION_MS: 3000,
+  SMOOTH_TRANSITION_STEP_MS: 100,
+
   // Schema IDs
   DESKTOP_INTERFACE_SCHEMA: 'org.gnome.desktop.interface',
 
   // Settings keys
   ACCENT_COLOR_KEY: 'accent-color',
+  SMOOTH_TRANSITION_KEY: 'smooth-transition-enabled',
 } as const;
 
 /**

@@ -28,6 +28,7 @@ export default class OpenRGBAccentSyncExtension
   public openrgbClient: OpenRGBClient | null = null;
   public settings: Gio.Settings | null = null;
   public lastKnownColor: RGBColor | null = null;
+  public lastAppliedDeviceColor: RGBColor | null = null;
 
   // Signal management
   public accentColorSignal: SignalId | null = null;
@@ -47,6 +48,10 @@ export default class OpenRGBAccentSyncExtension
 
   // Sync state
   public syncInProgress: boolean = false;
+
+  // Color change queue
+  public colorChangeQueue: RGBColor[] = [];
+  public isProcessingQueue: boolean = false;
 
   // Night light state
   public nightLightDBusProxy: Gio.DBusProxy | null = null;
@@ -142,6 +147,9 @@ export default class OpenRGBAccentSyncExtension
 
     this.settings = null;
     this.lastKnownColor = null;
+    this.lastAppliedDeviceColor = null;
+    this.colorChangeQueue = [];
+    this.isProcessingQueue = false;
 
     if (this.reconnectionTimer) {
       GLib.source_remove(this.reconnectionTimer);
@@ -407,6 +415,52 @@ export default class OpenRGBAccentSyncExtension
       `OpenRGB Accent Sync: syncAccentColor called with RGB(${color.r}, ${color.g}, ${color.b})`,
     );
 
+    this.colorChangeQueue.push(color);
+    console.log(
+      `OpenRGB Accent Sync: Added color to queue, queue length: ${this.colorChangeQueue.length}`,
+    );
+
+    if (!this.isProcessingQueue) {
+      this.processColorQueue();
+    }
+  }
+
+  private async processColorQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.colorChangeQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    console.log('OpenRGB Accent Sync: Starting queue processing');
+
+    try {
+      while (this.colorChangeQueue.length > 0) {
+        const targetColor = this.colorChangeQueue.pop()!;
+        this.colorChangeQueue = [];
+
+        console.log(
+          `OpenRGB Accent Sync: Processing color RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`,
+        );
+
+        await this.applyColorChange(targetColor);
+      }
+    } catch (error: unknown) {
+      console.error('OpenRGB Accent Sync: Error processing color queue:', error);
+    } finally {
+      this.isProcessingQueue = false;
+      console.log('OpenRGB Accent Sync: Queue processing completed');
+
+      if (this.colorChangeQueue.length > 0) {
+        console.log('OpenRGB Accent Sync: New colors added during processing, restarting queue');
+        this.addTimeout(() => {
+          this.processColorQueue();
+          return GLib.SOURCE_REMOVE;
+        }, 100);
+      }
+    }
+  }
+
+  private async applyColorChange(color: RGBColor): Promise<void> {
     if (this.syncInProgress) {
       console.log('OpenRGB Accent Sync: Sync already in progress, skipping duplicate call');
       return;
@@ -452,7 +506,7 @@ export default class OpenRGBAccentSyncExtension
         );
       }
 
-      console.log(`OpenRGB Accent Sync: Calling setDevicesColor...`);
+      console.log(`OpenRGB Accent Sync: Preparing device color update...`);
       if (!this.openrgbClient) {
         throw new Error('OpenRGB client not available');
       }
@@ -486,21 +540,147 @@ export default class OpenRGBAccentSyncExtension
         ? this.settings.get_boolean('set-direct-mode-on-update')
         : false;
 
-      const results = await this.openrgbClient.setDevicesColor(
-        devicesToSync,
-        color,
-        setDirectModeOnUpdate,
-      );
+      const smoothTransitionEnabled = (() => {
+        if (!this.settings) return false;
 
-      const successful = results.filter((r) => r.success).length;
-      const total = results.length;
-      console.log(
-        `OpenRGB Accent Sync: Color sync complete (${successful}/${total} devices successful)`,
-      );
+        // Force disable smooth transitions when direct mode is enabled
+        if (setDirectModeOnUpdate) {
+          console.log('OpenRGB Accent Sync: Smooth transition disabled due to direct mode setting');
+          return false;
+        }
 
-      if (successful === 0 && total > 0) {
-        console.error('OpenRGB Accent Sync: All devices failed to sync, starting reconnection...');
-        this.startReconnectionTimer();
+        try {
+          // @ts-ignore access schema if exists
+          const hasKey = (this.settings as any).settings_schema?.has_key?.(
+            ExtensionConstants.SMOOTH_TRANSITION_KEY,
+          );
+          if (!hasKey) return false;
+          return this.settings.get_boolean(ExtensionConstants.SMOOTH_TRANSITION_KEY);
+        } catch {
+          return false;
+        }
+      })();
+
+      if (!smoothTransitionEnabled) {
+        console.log(`OpenRGB Accent Sync: Smooth transition disabled, applying instantly`);
+        const results = await this.openrgbClient.setDevicesColor(
+          devicesToSync,
+          color,
+          setDirectModeOnUpdate,
+        );
+        this.lastAppliedDeviceColor = color;
+
+        const successful = results.filter((r) => r.success).length;
+        const total = results.length;
+        console.log(
+          `OpenRGB Accent Sync: Color sync complete (${successful}/${total} devices successful)`,
+        );
+
+        if (successful === 0 && total > 0) {
+          console.error(
+            'OpenRGB Accent Sync: All devices failed to sync, starting reconnection...',
+          );
+          this.startReconnectionTimer();
+        }
+      } else {
+        // Smooth transition path
+        const startColor = this.lastAppliedDeviceColor;
+        if (!startColor) {
+          // When no previous applied color exists, we need to apply the color immediately
+          // Fall back to instant mode for the first application
+          console.log(
+            'OpenRGB Accent Sync: No previous applied color, applying instantly first time',
+          );
+          const results = await this.openrgbClient.setDevicesColor(
+            devicesToSync,
+            color,
+            setDirectModeOnUpdate,
+          );
+          this.lastAppliedDeviceColor = color;
+
+          const successful = results.filter((r) => r.success).length;
+          const total = results.length;
+          console.log(
+            `OpenRGB Accent Sync: Initial color application complete (${successful}/${total} devices successful)`,
+          );
+
+          if (successful === 0 && total > 0) {
+            console.error(
+              'OpenRGB Accent Sync: All devices failed to sync, starting reconnection...',
+            );
+            this.startReconnectionTimer();
+          }
+          return;
+        }
+        const targetColor = color;
+
+        const equalColors =
+          startColor.r === targetColor.r &&
+          startColor.g === targetColor.g &&
+          startColor.b === targetColor.b;
+
+        if (equalColors) {
+          console.log('OpenRGB Accent Sync: Start and target colors are equal, no transition');
+          return;
+        }
+
+        console.log(
+          `OpenRGB Accent Sync: Smooth transition enabled, interpolating over ${ExtensionConstants.SMOOTH_TRANSITION_DURATION_MS}ms`,
+        );
+
+        const steps = Math.max(
+          1,
+          Math.floor(
+            ExtensionConstants.SMOOTH_TRANSITION_DURATION_MS /
+              ExtensionConstants.SMOOTH_TRANSITION_STEP_MS,
+          ),
+        );
+
+        let lastResults: { success: boolean }[] = [];
+        let firstStep = true;
+        for (let i = 1; i <= steps; i++) {
+          const t = i / steps;
+          const stepColor: RGBColor = {
+            r: Math.round(startColor.r + (targetColor.r - startColor.r) * t),
+            g: Math.round(startColor.g + (targetColor.g - startColor.g) * t),
+            b: Math.round(startColor.b + (targetColor.b - startColor.b) * t),
+            a: targetColor.a,
+          };
+
+          try {
+            lastResults = await this.openrgbClient.setDevicesColor(
+              devicesToSync,
+              stepColor,
+              firstStep && setDirectModeOnUpdate,
+            );
+            this.lastAppliedDeviceColor = stepColor;
+          } catch (e) {
+            console.warn('OpenRGB Accent Sync: Transition step failed:', e);
+          }
+
+          if (i < steps) {
+            await new Promise<void>((resolve) =>
+              this.addTimeout(() => {
+                resolve();
+                return GLib.SOURCE_REMOVE;
+              }, ExtensionConstants.SMOOTH_TRANSITION_STEP_MS),
+            );
+          }
+          firstStep = false;
+        }
+
+        const successful = lastResults.filter((r) => r.success).length;
+        const total = lastResults.length;
+        console.log(
+          `OpenRGB Accent Sync: Smooth transition complete (${successful}/${total} devices successful on last step)`,
+        );
+
+        if (successful === 0 && total > 0) {
+          console.error(
+            'OpenRGB Accent Sync: All devices failed to sync on last step, starting reconnection...',
+          );
+          this.startReconnectionTimer();
+        }
       }
     } catch (error: unknown) {
       const errorMsg = formatErrorMessage(error);
@@ -522,10 +702,7 @@ export default class OpenRGBAccentSyncExtension
 
       this.startReconnectionTimer();
     } finally {
-      this.addTimeout(() => {
-        this.syncInProgress = false;
-        return GLib.SOURCE_REMOVE;
-      }, 1000);
+      this.syncInProgress = false;
     }
   }
 
