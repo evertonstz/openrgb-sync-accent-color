@@ -416,7 +416,9 @@ export default class OpenRGBAccentSyncExtension
     );
 
     this.colorChangeQueue.push(color);
-    console.log(`OpenRGB Accent Sync: Added color to queue, queue length: ${this.colorChangeQueue.length}`);
+    console.log(
+      `OpenRGB Accent Sync: Added color to queue, queue length: ${this.colorChangeQueue.length}`,
+    );
 
     if (!this.isProcessingQueue) {
       this.processColorQueue();
@@ -435,7 +437,7 @@ export default class OpenRGBAccentSyncExtension
       while (this.colorChangeQueue.length > 0) {
         const targetColor = this.colorChangeQueue.pop()!;
         this.colorChangeQueue = [];
-        
+
         console.log(
           `OpenRGB Accent Sync: Processing color RGB(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`,
         );
@@ -447,7 +449,7 @@ export default class OpenRGBAccentSyncExtension
     } finally {
       this.isProcessingQueue = false;
       console.log('OpenRGB Accent Sync: Queue processing completed');
-      
+
       if (this.colorChangeQueue.length > 0) {
         console.log('OpenRGB Accent Sync: New colors added during processing, restarting queue');
         this.addTimeout(() => {
@@ -540,13 +542,13 @@ export default class OpenRGBAccentSyncExtension
 
       const smoothTransitionEnabled = (() => {
         if (!this.settings) return false;
-        
+
         // Force disable smooth transitions when direct mode is enabled
         if (setDirectModeOnUpdate) {
           console.log('OpenRGB Accent Sync: Smooth transition disabled due to direct mode setting');
           return false;
         }
-        
+
         try {
           // @ts-ignore access schema if exists
           const hasKey = (this.settings as any).settings_schema?.has_key?.(
@@ -586,7 +588,9 @@ export default class OpenRGBAccentSyncExtension
         if (!startColor) {
           // When no previous applied color exists, we need to apply the color immediately
           // Fall back to instant mode for the first application
-          console.log('OpenRGB Accent Sync: No previous applied color, applying instantly first time');
+          console.log(
+            'OpenRGB Accent Sync: No previous applied color, applying instantly first time',
+          );
           const results = await this.openrgbClient.setDevicesColor(
             devicesToSync,
             color,

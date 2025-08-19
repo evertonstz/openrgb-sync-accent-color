@@ -146,7 +146,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       if (hasSmoothTransitionKey && smoothTransitionRow) {
         smoothTransitionRow.sensitive = !directModeRow.active;
         if (directModeRow.active) {
-          smoothTransitionRow.subtitle = _('Disabled when "Set Direct Mode on Every Update" is enabled');
+          smoothTransitionRow.subtitle = _(
+            'Disabled when "Set Direct Mode on Every Update" is enabled',
+          );
         } else {
           smoothTransitionRow.subtitle = _('Interpolate color changes smoothly over 3 seconds');
         }
@@ -170,7 +172,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
       smoothTransitionRow = new Adw.SwitchRow({
         title: _('Smooth Color Transition'),
-        subtitle: directModeEnabled 
+        subtitle: directModeEnabled
           ? _('Disabled when "Set Direct Mode on Every Update" is enabled')
           : _('Interpolate color changes smoothly over 3 seconds'),
         active: smoothActive,
@@ -188,7 +190,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     syncGroup.add(enabledRow);
     syncGroup.add(delayRow);
-  syncGroup.add(directModeRow);
+    syncGroup.add(directModeRow);
     page.add(syncGroup);
   }
 
