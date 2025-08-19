@@ -1,0 +1,17 @@
+{
+  "name": "Gnome Shell Extensions Dev Container",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers-extra/features/pnpm:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["biomejs.biome", "vitest.explorer", "ms-vscode-remote.remote-containers"]
+    }
+  },
+  "mounts": [
+    // Mount host GNOME Shell extensions into the container user's home
+    "source=${localEnv:HOME}/.local/share/gnome-shell/extensions,target=/home/node/.local/share/gnome-shell/extensions,type=bind",
+    "source=${localEnv:HOME}/.gitconfig,target=/home/node/.gitconfig,type=bind"
+  ]
+}

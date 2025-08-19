@@ -34,5 +34,7 @@ Thumbs.db
 # GNOME extension compiled schemas (will be regenerated)
 schemas/gschemas.compiled
 
+.pnpm-store/*
+
 # Lock files (optional - you might want to commit package-lock.json)
 # package-lock.json
