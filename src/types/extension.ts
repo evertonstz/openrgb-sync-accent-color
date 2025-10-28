@@ -37,7 +37,8 @@ export interface ExtensionSettings {
   'openrgb-port': number;
   'sync-enabled': boolean;
   'sync-delay': number;
-  'ignored-devices': string[]; // Array of JSON-serialized Device objects
+  'ignored-devices': string[];
+  'ignored-devices-migrated'?: boolean; // one-time wipe flag due to bug until version v1.4.0
   'smooth-transition-enabled'?: boolean;
 }
 
@@ -45,7 +46,8 @@ export interface ExtensionSettings {
  * OpenRGB device information for UI display
  */
 export interface DeviceInfo {
-  id: number;
+  ephemeralId: number;
+  stableId: string;
   name: string;
   ledCount: number;
   enabled: boolean;

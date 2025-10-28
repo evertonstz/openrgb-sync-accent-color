@@ -62,6 +62,35 @@ export default class OpenRGBAccentSyncExtension
 
     this.settings = this.getSettings();
 
+    // One-time wipe of ignored devices list if not migrated yet
+    try {
+      if (this.settings && !this.settings.get_boolean('ignored-devices-migrated')) {
+        const existingIgnored = this.settings.get_strv('ignored-devices');
+        if (existingIgnored.length > 0) {
+          console.log(
+            `OpenRGB Accent Sync: Performing one-time wipe of ${existingIgnored.length} ignored devices (unstable legacy IDs)`,
+          );
+          this.settings.set_strv('ignored-devices', []);
+          try {
+            Main.notify(
+              'OpenRGB Accent Sync',
+              'Ignored devices list was reset. Reconfigure ignored devices in preferences.',
+            );
+          } catch (notificationError) {
+            console.warn(
+              'OpenRGB Accent Sync: Failed to show wipe notification:',
+              notificationError,
+            );
+          }
+        } else {
+          console.log('OpenRGB Accent Sync: No legacy ignored devices present; wipe skipped');
+        }
+        this.settings.set_boolean('ignored-devices-migrated', true);
+      }
+    } catch (wipeError) {
+      console.warn('OpenRGB Accent Sync: Wipe routine failed:', wipeError);
+    }
+
     console.log(
       `OpenRGB Accent Sync: Current night-light-disable-lights: ${this.settings.get_boolean('night-light-disable-lights')}`,
     );
@@ -513,27 +542,31 @@ export default class OpenRGBAccentSyncExtension
 
       const ignoredDeviceJsons = this.settings ? this.settings.get_strv('ignored-devices') : [];
 
-      const ignoredDeviceIds = ignoredDeviceJsons
+      const ignoredStableIds = ignoredDeviceJsons
         .map((deviceJson) => {
           try {
             const device = JSON.parse(deviceJson);
-            return device.id;
+            return device.stableId;
           } catch (error) {
             console.warn('Failed to parse ignored device JSON:', deviceJson, error);
-            return -1; // Invalid ID that won't match any real device
+            return null;
           }
         })
-        .filter((id) => id !== -1);
+        .filter((id): id is string => !!id);
 
       const allDevices = this.openrgbClient.getDevices();
 
-      const devicesToSync = allDevices.filter((device) => !ignoredDeviceIds.includes(device.id));
+      const devicesToSync = allDevices.filter(
+        (device) => !ignoredStableIds.includes(device.stableId),
+      );
 
       console.log(
-        `OpenRGB Accent Sync: Syncing ${devicesToSync.length} devices (${ignoredDeviceIds.length} ignored)`,
+        `OpenRGB Accent Sync: Syncing ${devicesToSync.length} devices (${ignoredStableIds.length} ignored)`,
       );
-      if (ignoredDeviceIds.length > 0) {
-        console.log(`OpenRGB Accent Sync: Ignored device IDs: [${ignoredDeviceIds.join(', ')}]`);
+      if (ignoredStableIds.length > 0) {
+        console.log(
+          `OpenRGB Accent Sync: Ignored device stable IDs: [${ignoredStableIds.join(', ')}]`,
+        );
       }
 
       const setDirectModeOnUpdate = this.settings

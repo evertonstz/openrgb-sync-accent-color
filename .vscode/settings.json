@@ -26,5 +26,6 @@
   "search.exclude": {
     "**/node_modules": true,
     "**/dist": true
-  }
+  },
+  "remote.autoForwardPortsFallback": 0
 }

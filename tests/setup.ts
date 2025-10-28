@@ -9,7 +9,7 @@ vi.mock('gi://Gio', () => ({
       }),
     },
     SocketClient: vi.fn().mockImplementation(() => ({
-      connect_async: vi.fn((address, cancellable, callback) => {
+      connect_async: vi.fn((_address, _cancellable, callback) => {
         // Simulate successful connection
         setTimeout(() => {
           callback(null, {

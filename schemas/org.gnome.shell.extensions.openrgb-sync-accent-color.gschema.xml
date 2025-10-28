@@ -50,5 +50,10 @@
             <summary>Enable Smooth Color Transition</summary>
             <description>If enabled, interpolate color changes smoothly over 3 seconds instead of changing instantly</description>
         </key>
+        <key name="ignored-devices-migrated" type="b">
+            <default>false</default>
+            <summary>Ignored Devices Reset Performed</summary>
+            <description>Internal flag to ensure the one-time wipe of ignored devices only happens once.</description>
+        </key>
     </schema>
 </schemalist>

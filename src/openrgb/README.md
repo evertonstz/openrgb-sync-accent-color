@@ -1,4 +1,4 @@
-# OpenRGB SDK Implementation
+# OpenRGB SDK Implementation (TypeScript / GNOME Shell)
 
 This directory contains a modernized TypeScript implementation of the OpenRGB SDK protocol for GNOME Shell extensions. It provides a clean, type-safe, and modular interface to communicate with OpenRGB devices over the network.
 
@@ -14,26 +14,27 @@ The OpenRGB SDK allows applications to communicate with OpenRGB instances runnin
 
 ## Architecture
 
-The SDK is organized into several modular components with clear separation of concerns:
+Components:
 
 ```
 src/openrgb/
-├── types.ts        # Core protocol types and validation utilities
-├── errors.ts       # Custom error classes and error handling
-├── enums.ts        # Protocol enums (packet types, etc.)
-├── constants.ts    # Protocol constants and configuration
-├── parser.ts       # Binary data parsing utilities
-├── device.ts       # Device data structures and parsing
-├── network.ts      # Low-level network communication
-├── client.ts       # High-level client interface
-└── index.ts        # Centralized exports
+├── types.ts     # Protocol types + helpers
+├── errors.ts    # Error classes & utilities
+├── enums.ts     # PacketType enum
+├── constants.ts # Legacy numeric constants map
+├── parser.ts    # Binary parsing logic
+├── device.ts    # DeviceData representation + parsing
+├── network.ts   # Low-level socket communication
+├── client.ts    # High-level client (discovery, updates)
+├── hash.ts      # stableId fingerprint + hashing
+└── index.ts     # Barrel exports
 ```
 
 ## Core Components
 
-### Protocol Types (`types.ts`)
+### Types (`types.ts`)
 
-Centralized type definitions and validation utilities for the OpenRGB protocol:
+Selected excerpt:
 
 ```typescript
 export interface RGBColor {
@@ -56,9 +57,9 @@ export function validateRGBColor(color: RGBColor): void;
 export function createRGBColor(r: number, g: number, b: number, a?: number): RGBColor;
 ```
 
-### Error Handling (`errors.ts`)
+### Errors (`errors.ts`)
 
-Custom error classes for comprehensive error handling:
+Domain errors:
 
 ```typescript
 export class OpenRGBError extends Error;
@@ -72,9 +73,7 @@ export function isOpenRGBError(error: unknown): error is OpenRGBError;
 export function formatErrorMessage(error: unknown): string;
 ```
 
-### Protocol Enums (`enums.ts`)
-
-Type-safe enums for protocol constants:
+### Packet Enum (`enums.ts`)
 
 ```typescript
 export enum PacketType {
@@ -88,7 +87,7 @@ export enum PacketType {
 
 ### Constants (`constants.ts`)
 
-Defines the OpenRGB protocol packet types:
+Alternative to enum for consumers needing object map.
 
 ```typescript
 export const PacketType = {
@@ -100,9 +99,9 @@ export const PacketType = {
 };
 ```
 
-### Binary Parser (`parser.ts`)
+### Parser (`parser.ts`)
 
-Provides utilities for parsing binary protocol data with proper endianness handling and error recovery:
+Incremental DataView-based parser with contextual error reporting.
 
 ```typescript
 export class BinaryParser {
@@ -120,8 +119,6 @@ export class BinaryParser {
 ```
 
 ### Device Data (`device.ts`)
-
-Handles device information parsing and representation with type safety:
 
 ```typescript
 export class DeviceData {
@@ -142,7 +139,7 @@ export class DeviceData {
 
 ### Network Client (`network.ts`)
 
-Low-level network communication with OpenRGB server, featuring robust error handling:
+Packet framing, async writes & incremental response assembly.
 
 ```typescript
 export class NetworkClient {
@@ -162,9 +159,30 @@ export class NetworkClient {
 }
 ```
 
-### OpenRGB Client (`client.ts`)
+### High-Level Client (`client.ts`)
 
-High-level interface for OpenRGB operations with comprehensive error handling:
+Produces augmented Device objects:
+
+```typescript
+export interface Device {
+  ephemeralId: number;      // Volatile packet index
+  stableId: string;         // Deterministic fingerprint hash (first 16 hex of SHA-256)
+  name: string;
+  ledCount: number;
+  directModeIndex: number;  // Index of direct mode (0 if not found)
+  data: DeviceData | null;  // Raw capabilities or null if failed
+}
+```
+
+Primary methods:
+```typescript
+await client.connect();
+await client.discoverDevices();        // populates internal array
+client.getDevices();                   // snapshot copy
+client.getDeviceCount();
+await client.setDevicesColor(devices, color, setDirectModeOnUpdate?);
+await client.setAllDevicesColor(color, setDirectModeOnUpdate?);
+```
 
 ```typescript
 export class OpenRGBClient {
@@ -184,6 +202,27 @@ export class OpenRGBClient {
 }
 ```
 
+## Stable Device Identity
+
+`stableId` is derived from a normalized fingerprint:
+
+```
+serial|location|name|leds:<count>
+```
+
+Normalization rules:
+- Blank / all-zero serial → placeholder `serial:false`
+- Blank location → `loc:false`
+- Name lowercased and collapsed whitespace
+- LED count appended as `leds:<n>`
+
+SHA-256 of the fingerprint is computed (GLib in GNOME, Node crypto in tests); first 16 hex chars retained. Discovery failures inject placeholder devices with `stableId=failed-<index>`.
+
+Benefits:
+- Immune to enumeration order changes
+- Differentiates similar hardware with distinct LED counts
+- Compact & log-friendly
+
 ## Protocol Details
 
 ### Packet Structure
@@ -202,14 +241,11 @@ Data: Variable length based on command
 
 ### Command Flow
 
-1. **Connection**: TCP connection to OpenRGB server (default: 127.0.0.1:6742)
-2. **Client Name**: Send `SET_CLIENT_NAME` with application identifier
-3. **Device Discovery**: 
-   - Send `REQUEST_CONTROLLER_COUNT` to get device count
-   - Send `REQUEST_CONTROLLER_DATA` for each device to get capabilities
-4. **Device Control**:
-   - Send `RGBCONTROLLER_UPDATELEDS` to update device colors
-   - Send `RGBCONTROLLER_UPDATEMODE` to change device modes
+1. Connect TCP → register client name
+2. Request controller count
+3. For each index: request controller data → parse → compute `stableId` & detect direct mode
+4. Optional: set direct mode during discovery (faster subsequent updates)
+5. Update LEDs (`RGBCONTROLLER_UPDATELEDS`)
 
 ### Data Types
 
@@ -263,43 +299,43 @@ interface DeviceLED {
 ## Usage Example
 
 ```typescript
-import { 
-  OpenRGBClient, 
-  createRGBColor, 
-  OpenRGBConnectionError 
+import {
+  OpenRGBClient,
+  createRGBColor,
+  OpenRGBConnectionError,
+  formatErrorMessage,
 } from './src/openrgb/index.js';
 
-try {
-  // Create client instance
+async function demo() {
   const client = new OpenRGBClient('127.0.0.1', 6742, 'MyApp');
+  try {
+    await client.connect();
+    const devices = await client.discoverDevices();
+    devices.forEach(d => console.log(`${d.name} stableId=${d.stableId} leds=${d.ledCount}`));
 
-  // Connect and discover devices
-  await client.connect();
-  const devices = await client.discoverDevices();
-  
-  console.log(`Found ${devices.length} devices`);
+    const blue = createRGBColor(0, 0, 255);
+    await client.setAllDevicesColor(blue, true); // ensure direct mode before update
 
-  // Set all devices to red using type-safe color creation
-  const red = createRGBColor(255, 0, 0);
-  await client.setAllDevicesColor(red);
-
-  // Set specific device color
-  await client.setDeviceColor(0, createRGBColor(0, 255, 0));
-
-  // Cleanup
-  client.disconnect();
-} catch (error) {
-  if (error instanceof OpenRGBConnectionError) {
-    console.error('Connection failed:', error.message);
-  } else {
-    console.error('Unexpected error:', error);
+    const active = devices.filter(d => d.ledCount > 0);
+    const orange = createRGBColor(255, 128, 0);
+    await client.setDevicesColor(active, orange);
+  } catch (error) {
+    if (error instanceof OpenRGBConnectionError) {
+      console.error(`Connection failed to ${error.address}:${error.port}`);
+    } else {
+      console.error('Unexpected error:', formatErrorMessage(error));
+    }
+  } finally {
+    client.disconnect();
   }
 }
+
+demo();
 ```
 
 ## Error Handling
 
-The modernized SDK includes comprehensive error handling with specific error types:
+Example pattern:
 
 ```typescript
 try {
@@ -308,27 +344,27 @@ try {
   if (error instanceof OpenRGBConnectionError) {
     console.error(`Connection failed to ${error.address}:${error.port}`);
   } else if (error instanceof OpenRGBProtocolError) {
-    console.error(`Protocol error with packet type ${error.packetType}`);
+    console.error(`Protocol error packetType=${error.packetType}`);
   } else if (error instanceof OpenRGBTimeoutError) {
-    console.error(`Operation timed out after ${error.timeout}ms`);
+    console.error(`Timeout after ${error.timeoutMs}ms`);
   } else if (error instanceof OpenRGBParseError) {
-    console.error(`Parse error at offset ${error.offset}: ${error.message}`);
+    console.error(`Parse error offset=${error.offset}: ${error.message}`);
   } else {
     console.error('Unexpected error:', formatErrorMessage(error));
   }
 }
 ```
 
-**Error Types:**
-- **OpenRGBConnectionError**: Network connection failures with address/port context
-- **OpenRGBProtocolError**: Invalid packet format or responses with packet type info
-- **OpenRGBParseError**: Binary data parsing failures with offset information
-- **OpenRGBTimeoutError**: Operations that exceed time limits
-- **OpenRGBError**: Base class for all OpenRGB-specific errors
+Key types:
+- `OpenRGBConnectionError` (address, port)
+- `OpenRGBProtocolError` (packetType)
+- `OpenRGBParseError` (offset)
+- `OpenRGBTimeoutError` (timeoutMs)
+- `OpenRGBError` (base)
 
-**Error Utilities:**
-- `isOpenRGBError(error)`: Type guard to check if error is OpenRGB-related
-- `formatErrorMessage(error)`: Safe error message formatting for unknown errors
+Utilities:
+- `isOpenRGBError(error)`
+- `formatErrorMessage(error)`
 
 ## Dependencies
 
