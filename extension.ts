@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import { NotificationUrgency, showExtensionNotification } from './src/notification.js';
 import {
   formatErrorMessage,
   isOpenRGBError,
@@ -71,17 +71,11 @@ export default class OpenRGBAccentSyncExtension
             `OpenRGB Accent Sync: Performing one-time wipe of ${existingIgnored.length} ignored devices (unstable legacy IDs)`,
           );
           this.settings.set_strv('ignored-devices', []);
-          try {
-            Main.notify(
-              'OpenRGB Accent Sync',
-              'Ignored devices list was reset. Reconfigure ignored devices in preferences.',
-            );
-          } catch (notificationError) {
-            console.warn(
-              'OpenRGB Accent Sync: Failed to show wipe notification:',
-              notificationError,
-            );
-          }
+          showExtensionNotification('Ignored devices reset', {
+            body: 'Legacy ignored devices were cleared due to a bug in the last version. Reconfigure ignored devices in preferences; this should not happen again.',
+            persistent: true,
+            urgency: NotificationUrgency.HIGH,
+          });
         } else {
           console.log('OpenRGB Accent Sync: No legacy ignored devices present; wipe skipped');
         }
@@ -242,14 +236,11 @@ export default class OpenRGBAccentSyncExtension
 
     if (this.reconnectionAttempts >= this.maxReconnectionAttempts) {
       console.error('OpenRGB Accent Sync: Max reconnection attempts reached, giving up');
-      try {
-        Main.notify(
-          'OpenRGB Accent Sync',
-          `Failed to connect to OpenRGB server after ${this.maxReconnectionAttempts} attempts. Please check if OpenRGB is running with server mode enabled.`,
-        );
-      } catch (notificationError) {
-        console.warn('OpenRGB Accent Sync: Failed to show notification:', notificationError);
-      }
+      showExtensionNotification('OpenRGB connection failed', {
+        body: `Failed to connect to OpenRGB server after ${this.maxReconnectionAttempts} attempts. Please ensure OpenRGB is running with server mode enabled.`,
+        persistent: true,
+        urgency: NotificationUrgency.NORMAL,
+      });
 
       return;
     }
