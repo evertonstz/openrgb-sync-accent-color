@@ -1,10 +1,12 @@
 import type { DeviceData } from './device.js';
 import { OpenRGBConnectionError, OpenRGBError } from './errors.js';
+import { buildDeviceFingerprint, hashFingerprint } from './hash.js';
 import { NetworkClient } from './network.js';
 import { type RGBColor, validateRGBColor } from './types.js';
 
 export interface Device {
-  id: number;
+  ephemeralId: number; // volatile enumeration index used for protocol packets
+  stableId: string; // deterministic ID
   name: string;
   ledCount: number;
   directModeIndex: number;
@@ -69,8 +71,11 @@ export class OpenRGBClient {
             }
           }
 
+          const stableId = this.computeStableId(deviceData);
+
           const device: Device = {
-            id: i,
+            ephemeralId: i,
+            stableId,
             name: deviceData.name,
             ledCount: deviceData.leds.length,
             directModeIndex: directModeIndex,
@@ -79,13 +84,13 @@ export class OpenRGBClient {
 
           if (device.ledCount > 0) {
             try {
-              await this.networkClient.setDeviceMode(device.id, device.directModeIndex);
+              await this.networkClient.setDeviceMode(device.ephemeralId, device.directModeIndex);
               console.log(
-                `OpenRGB: Device ${i} - Set to direct mode ${device.directModeIndex} during discovery`,
+                `OpenRGB: Device ${i} (stableId=${device.stableId}) - Set to direct mode ${device.directModeIndex} during discovery`,
               );
             } catch (modeError) {
               console.warn(
-                `OpenRGB: Failed to set device ${i} to direct mode during discovery:`,
+                `OpenRGB: Failed to set device ${i} (stableId=${device.stableId}) to direct mode during discovery:`,
                 (modeError as Error).message,
               );
             }
@@ -93,13 +98,14 @@ export class OpenRGBClient {
 
           this.devices.push(device);
           console.log(
-            `OpenRGB: Device ${i}: ${device.name} (${device.ledCount} LEDs, direct mode: ${device.directModeIndex})`,
+            `OpenRGB: Device ${i}: ${device.name} (${device.ledCount} LEDs, direct mode: ${device.directModeIndex}, stableId=${device.stableId})`,
           );
         } catch (error) {
           console.warn(`OpenRGB: Failed to get device ${i}:`, (error as Error).message);
 
           this.devices.push({
-            id: i,
+            ephemeralId: i,
+            stableId: `failed-${i}`,
             name: `Device ${i} (Failed)`,
             ledCount: 0,
             directModeIndex: 0,
@@ -147,35 +153,50 @@ export class OpenRGBClient {
     for (const device of devices) {
       try {
         if (device.ledCount === 0) {
-          console.log(`OpenRGB: Skipping device ${device.id} - 0 LEDs`);
-          results.push({ deviceId: device.id, success: false, error: 'Device skipped (0 LEDs)' });
+          console.log(
+            `OpenRGB: Skipping device ${device.ephemeralId} (stableId=${device.stableId}) - 0 LEDs`,
+          );
+          results.push({
+            deviceId: device.ephemeralId,
+            success: false,
+            error: 'Device skipped (0 LEDs)',
+          });
           continue;
         }
 
         console.log(
-          `OpenRGB: Updating device ${device.id} (${device.name}) with ${device.ledCount} LEDs`,
+          `OpenRGB: Updating device ${device.ephemeralId} (${device.name}, stableId=${device.stableId}) with ${device.ledCount} LEDs`,
         );
 
         if (setDirectModeOnUpdate) {
           try {
-            await this.networkClient.setDeviceMode(device.id, device.directModeIndex);
+            await this.networkClient.setDeviceMode(device.ephemeralId, device.directModeIndex);
             console.log(
-              `OpenRGB: Device ${device.id} - Set to direct mode ${device.directModeIndex} before update`,
+              `OpenRGB: Device ${device.ephemeralId} (stableId=${device.stableId}) - Set to direct mode ${device.directModeIndex} before update`,
             );
           } catch (modeError) {
             console.warn(
-              `OpenRGB: Failed to set device ${device.id} to direct mode before update:`,
+              `OpenRGB: Failed to set device ${device.ephemeralId} (stableId=${device.stableId}) to direct mode before update:`,
               (modeError as Error).message,
             );
           }
         }
 
-        await this.networkClient.updateLeds(device.id, validatedColor, device.ledCount);
-        console.log(`OpenRGB: Device ${device.id} - Color update sent successfully`);
-        results.push({ deviceId: device.id, success: true });
+        await this.networkClient.updateLeds(device.ephemeralId, validatedColor, device.ledCount);
+        console.log(
+          `OpenRGB: Device ${device.ephemeralId} (stableId=${device.stableId}) - Color update sent successfully`,
+        );
+        results.push({ deviceId: device.ephemeralId, success: true });
       } catch (error) {
-        console.error(`OpenRGB: Failed to update device ${device.id}:`, (error as Error).message);
-        results.push({ deviceId: device.id, success: false, error: (error as Error).message });
+        console.error(
+          `OpenRGB: Failed to update device ${device.ephemeralId} (stableId=${device.stableId}):`,
+          (error as Error).message,
+        );
+        results.push({
+          deviceId: device.ephemeralId,
+          success: false,
+          error: (error as Error).message,
+        });
       }
     }
 
@@ -194,5 +215,18 @@ export class OpenRGBClient {
    */
   getDeviceCount(): number {
     return this.devices.length;
+  }
+
+  /**
+   * Compute deterministic stableId from DeviceData
+   */
+  private computeStableId(deviceData: DeviceData): string {
+    const fingerprint = buildDeviceFingerprint({
+      serial: (deviceData as any).serial,
+      location: (deviceData as any).location,
+      name: deviceData.name,
+      ledCount: deviceData.leds.length,
+    });
+    return hashFingerprint(fingerprint);
   }
 }

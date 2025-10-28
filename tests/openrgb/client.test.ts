@@ -117,14 +117,18 @@ describe('OpenRGBClient', () => {
       expect(client.networkClient.getControllerData).toHaveBeenCalledWith(1);
 
       expect(client.devices).toHaveLength(2);
-      expect(client.devices[0]).toMatchObject({
-        id: 0,
-        name: 'Test Device 0',
-      });
-      expect(client.devices[1]).toMatchObject({
-        id: 1,
-        name: 'Test Device 1',
-      });
+      // New interface: ephemeralId and stableId
+      expect(client.devices[0]).toHaveProperty('ephemeralId', 0);
+      expect(client.devices[0]).toHaveProperty('stableId');
+      expect(typeof client.devices[0].stableId).toBe('string');
+      expect(client.devices[0]).toHaveProperty('name', 'Test Device 0');
+      expect(client.devices[1]).toHaveProperty('ephemeralId', 1);
+      expect(client.devices[1]).toHaveProperty('stableId');
+      expect(client.devices[1]).toHaveProperty('name', 'Test Device 1');
+      // stableId format (16 hex chars)
+      const hexRe = /^[0-9a-f]{16}$/;
+      expect(hexRe.test(client.devices[0].stableId)).toBe(true);
+      expect(hexRe.test(client.devices[1].stableId)).toBe(true);
     });
 
     it('should throw error when not connected', async () => {
@@ -211,9 +215,11 @@ describe('OpenRGBClient', () => {
 
     it('should provide device information', () => {
       const device = client.devices[0];
-      expect(device).toHaveProperty('id');
+      expect(device).toHaveProperty('ephemeralId');
+      expect(device).toHaveProperty('stableId');
       expect(device).toHaveProperty('name');
-      expect(typeof device.id).toBe('number');
+      expect(typeof device.ephemeralId).toBe('number');
+      expect(typeof device.stableId).toBe('string');
       expect(typeof device.name).toBe('string');
     });
 
@@ -225,6 +231,9 @@ describe('OpenRGBClient', () => {
 
       // Devices should be replaced, not appended
       expect(client.devices.length).toBe(2); // Same as mock count
+      // stableId should remain deterministic across rediscovery
+      const hexRe = /^[0-9a-f]{16}$/;
+      client.devices.forEach((d: any) => expect(hexRe.test(d.stableId)).toBe(true));
     });
   });
 

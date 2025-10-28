@@ -426,20 +426,20 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
       deviceListGroup.remove(statusRow);
 
       const ignoredDeviceJsons = settings.get_strv('ignored-devices');
-      const ignoredDeviceIds = ignoredDeviceJsons
+      const ignoredStableIds = ignoredDeviceJsons
         .map((deviceJson) => {
           try {
             const device = JSON.parse(deviceJson);
-            return device.id;
+            return device.stableId;
           } catch (error) {
             console.warn('Failed to parse ignored device JSON:', deviceJson, error);
-            return -1;
+            return null;
           }
         })
-        .filter((id) => id !== -1);
+        .filter((id): id is string => id !== null);
 
       devices.forEach((device) => {
-        const isEnabled = !ignoredDeviceIds.includes(device.id);
+        const isEnabled = !ignoredStableIds.includes(device.stableId);
 
         if (!isEnabled) {
           return;
@@ -447,7 +447,9 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
         const deviceRow = new Adw.ActionRow({
           title: device.name,
-          subtitle: _(`Device ID: ${device.id} • LEDs: ${device.ledCount}`),
+          subtitle: _(
+            `Stable ID: ${device.stableId} • Index: ${device.ephemeralId} • LEDs: ${device.ledCount}`,
+          ),
         });
 
         const ignoreButton = new Gtk.Button({
@@ -472,7 +474,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
             .filter((device) => device !== null);
 
           const deviceExists = currentIgnoredDevices.some(
-            (ignoredDevice) => ignoredDevice.id === device.id,
+            (ignoredDevice) => ignoredDevice.stableId === device.stableId,
           );
           if (!deviceExists) {
             currentIgnoredDevices.push(device);
@@ -480,7 +482,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
               'ignored-devices',
               currentIgnoredDevices.map((device) =>
                 JSON.stringify({
-                  id: device.id,
+                  stableId: device.stableId,
                   name: device.name,
                   ledCount: device.ledCount,
                 }),
@@ -511,7 +513,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         deviceRows.push(deviceRow);
       });
 
-      const hasIgnoredDevices = ignoredDeviceIds.length > 0;
+      const hasIgnoredDevices = ignoredStableIds.length > 0;
       resetButton.sensitive = hasIgnoredDevices;
 
       this._updateIgnoredDevicesSection(
@@ -638,7 +640,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
           return null;
         }
       })
-      .filter((device) => device !== null);
+      .filter((device) => device?.stableId);
 
     resetButton.sensitive = ignoredDevices.length > 0;
 
@@ -654,8 +656,10 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
     ignoredDevices.forEach((device) => {
       const deviceRow = new Adw.ActionRow({
-        title: device.name || _(`Device ID: ${device.id}`),
-        subtitle: _(`Device ID: ${device.id} • LEDs: ${device.ledCount || 0} • Currently ignored`),
+        title: device.name || _(`Stable ID: ${device.stableId}`),
+        subtitle: _(
+          `Stable ID: ${device.stableId} • LEDs: ${device.ledCount || 0} • Currently ignored`,
+        ),
       });
 
       const removeButton = new Gtk.Button({
@@ -672,7 +676,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
         const newIgnoredJsons = currentIgnoredJsons.filter((deviceJson) => {
           try {
             const ignoredDevice = JSON.parse(deviceJson);
-            return ignoredDevice.id !== device.id;
+            return ignoredDevice.stableId !== device.stableId;
           } catch (error) {
             console.warn('Failed to parse ignored device JSON during removal:', deviceJson, error);
             return false; // Remove invalid entries
@@ -682,8 +686,8 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
 
         if (deviceListGroup && deviceRows) {
           const newDeviceRow = new Adw.ActionRow({
-            title: device.name || _(`Device ID: ${device.id}`),
-            subtitle: _(`Device ID: ${device.id} • LEDs: ${device.ledCount || 0}`),
+            title: device.name || _(`Stable ID: ${device.stableId}`),
+            subtitle: _(`Stable ID: ${device.stableId} • LEDs: ${device.ledCount || 0}`),
           });
 
           const ignoreButton = new Gtk.Button({
@@ -707,7 +711,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
               .filter((device) => device !== null);
 
             const deviceExists = currentIgnoredDevices.some(
-              (ignoredDevice) => ignoredDevice.id === device.id,
+              (ignoredDevice) => ignoredDevice.stableId === device.stableId,
             );
             if (!deviceExists) {
               currentIgnoredDevices.push(device);
@@ -715,7 +719,7 @@ export default class OpenRGBAccentSyncPreferences extends ExtensionPreferences {
                 'ignored-devices',
                 currentIgnoredDevices.map((device) =>
                   JSON.stringify({
-                    id: device.id,
+                    stableId: device.stableId,
                     name: device.name,
                     ledCount: device.ledCount,
                   }),
