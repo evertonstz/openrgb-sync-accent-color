@@ -34,7 +34,7 @@
     "build:schemas": "glib-compile-schemas schemas",
     "build:all": "pnpm run build && pnpm run build:schemas",
     "pack": "pnpm run build:all && pnpm run pack:copy && pnpm run pack:zip",
-    "pack:copy": "mkdir -p dist/schemas && cp schemas/*.xml schemas/gschemas.compiled dist/schemas/ && cp metadata.json dist/",
+    "pack:copy": "mkdir -p dist/schemas && cp schemas/*.xml schemas/gschemas.compiled dist/schemas/ && cp -r resources dist/ 2>/dev/null || true && cp metadata.json dist/",
     "pack:zip": "cd dist && zip ../openrgb-sync-accent-color.zip -9r .",
     "install": "pnpm run pack && pnpm run install:copy",
     "install:copy": "rm -rf ~/.local/share/gnome-shell/extensions/openrgb-sync-accent-color@evertonstz.github.io && mkdir -p ~/.local/share/gnome-shell/extensions && cp -r dist ~/.local/share/gnome-shell/extensions/openrgb-sync-accent-color@evertonstz.github.io",
