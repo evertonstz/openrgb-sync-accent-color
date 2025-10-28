@@ -26,14 +26,28 @@ vi.mock('gi://Gio', () => ({
 }));
 
 vi.mock('gi://GLib', () => ({
-  default: {
-    Bytes: {
-      new: vi.fn(),
-    },
-    MainLoop: {
-      new: vi.fn(),
-    },
-  },
+  default: (() => {
+    // Deterministic fake SHA256 generator (non-crypto) good enough for tests
+    function fakeSha256Hex(input: string): string {
+      // FNV-1a 32-bit then expand to 64 hex chars deterministically
+      let hash = 0x811c9dc5;
+      for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = (hash * 0x01000193) >>> 0; // unsigned
+      }
+      const base = hash.toString(16).padStart(8, '0');
+      // Mirror + repeat to reach 64 chars
+      return (base + base.split('').reverse().join('') + base.repeat(2) + base.repeat(2)).slice(
+        0,
+        64,
+      );
+    }
+
+    return {
+      ChecksumType: { SHA256: 1 },
+      compute_checksum_for_string: (_type: any, data: string, _len: number) => fakeSha256Hex(data),
+    };
+  })(),
 }));
 
 // Global test utilities
