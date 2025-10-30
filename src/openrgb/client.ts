@@ -1,3 +1,4 @@
+import GLib from 'gi://GLib';
 import type { DeviceData } from './device.js';
 import { OpenRGBConnectionError, OpenRGBError } from './errors.js';
 import { buildDeviceFingerprint, hashFingerprint } from './hash.js';
@@ -227,6 +228,6 @@ export class OpenRGBClient {
       name: deviceData.name,
       ledCount: deviceData.leds.length,
     });
-    return hashFingerprint(fingerprint);
+    return hashFingerprint(fingerprint, GLib);
   }
 }

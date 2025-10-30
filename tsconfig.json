@@ -25,15 +25,6 @@
     "allowUnusedLabels": false,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["ambient.d.ts"],
-  "files": [
-    "extension.ts",
-    "prefs.ts",
-    "src/openrgb/enums.ts",
-    "src/openrgb/parser.ts",
-    "src/openrgb/device.ts",
-    "src/openrgb/network.ts",
-    "src/openrgb/client.ts",
-    "src/openrgb/index.ts"
-  ]
+  "include": ["ambient.d.ts", "extension.ts", "prefs.ts", "src/**/*.ts"],
+  "exclude": ["tests", "dist", "node_modules"]
 }

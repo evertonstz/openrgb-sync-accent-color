@@ -5,5 +5,6 @@
   "shell-version": ["45", "46", "47", "48"],
   "url": "https://github.com/evertonstz/openrgb-sync-accent-color",
   "settings-schema": "org.gnome.shell.extensions.openrgb-sync-accent-color",
-  "gettext-domain": "openrgb-sync-accent-color"
+  "gettext-domain": "openrgb-sync-accent-color",
+  "icon": "openrgb-sync-accent-color"
 }
