@@ -1,4 +1,4 @@
-# <img src="https://github.com/user-attachments/assets/bcf7adce-6425-4713-a955-56332b51caef" width="32" height="32" align="top"> OpenRGB Accent Color Sync
+# <img src="resources/icon.svg" width="48" height="48" align="top"> OpenRGB Accent Color Sync
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -7,6 +7,8 @@
 [![CI Status](https://img.shields.io/github/actions/workflow/status/evertonstz/openrgb-sync-accent-color/ci.yml?branch=main&logo=github&label=CI)](https://github.com/evertonstz/openrgb-sync-accent-color/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/evertonstz/openrgb-sync-accent-color?logo=github)](https://github.com/evertonstz/openrgb-sync-accent-color/releases)
 [![GitHub Downloads](https://img.shields.io/github/downloads/evertonstz/openrgb-sync-accent-color/total?logo=github)](https://github.com/evertonstz/openrgb-sync-accent-color/releases)
+
+---
 
 <p align="center">
   <a href="https://extensions.gnome.org/extension/8331/openrgb-accent-color-sync/">
