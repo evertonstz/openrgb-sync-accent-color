@@ -136,7 +136,7 @@ jobs:
         echo "✅ Package verified: $(ls -lh openrgb-sync-accent-color.zip)"
       
     - name: Upload to GNOME Extensions
-      uses: fire-man-x/gnome-shell-extension-uploader@v1
+      uses: fire-man-x/gnome-shell-extension-uploader@v2
       with:
         gnome_username: ${{ secrets.GNOME_EXTENSIONS_USERNAME }}
         gnome_password: ${{ secrets.GNOME_EXTENSIONS_PASSWORD }}
