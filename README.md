@@ -76,42 +76,7 @@ pnpm run check:fix
 
 For the extension to work properly, OpenRGB needs to be running in server mode. You can set this up as a systemd user service for automatic startup.
 
-### Systemd User Service (Recommended)
-
-Create a systemd user service file at `~/.config/systemd/user/openrgb.service`:
-
-```ini
-[Unit]
-Description=OpenRGB server mode
-After=graphical-session.target
-
-[Service]
-ExecStartPre=/usr/bin/udevadm settle
-ExecStart=/usr/bin/openrgb --server --server-host 127.0.0.1 --server-port 6742 --mode direct --col>
-ExecStop=/usr/bin/openrgb --client 127.0.0.1:6742 --mode direct --color 000000 --brightness 0
-Restart=on-failure
-Environment=DISPLAY=:0
-Environment=XAUTHORITY=%h/.Xauthority
-
-[Install]
-WantedBy=default.target
-```
-
-Then enable and start the service:
-
-```bash
-# Reload systemd user configuration
-systemctl --user daemon-reload
-
-# Enable the service to start on login
-systemctl --user enable openrgb.service
-
-# Start the service immediately
-systemctl --user start openrgb.service
-
-# Check service status
-systemctl --user status openrgb.service
-```
+I personally autostart OpenRGB via [Ignition](https://flathub.org/en/apps/io.github.flattool.Ignition) with the command `/usr/bin/openrgb --server --server-host 127.0.0.1 --server-port 6742 --mode direct --color ffffff`
 
 ## Special Thanks
 
